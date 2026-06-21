@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI 心理日記量測系統 | 心靈微光</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- CSS Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-logo">
+          <i data-lucide="brain-circuit"></i>
+        </div>
+        <div class="brand-text">
+          <h1>心靈微光</h1>
+          <span>AI 心理日記分析</span>
+        </div>
+      </div>
+      
+      <nav class="nav-menu">
+        <a href="#dashboard" class="nav-item active" data-tab="dashboard">
+          <i data-lucide="layout-dashboard"></i>
+          <span>身心儀表板</span>
+        </a>
+        <a href="#write" class="nav-item" data-tab="write">
+          <i data-lucide="pen-tool"></i>
+          <span>撰寫今日日記</span>
+        </a>
+        <a href="#logs" class="nav-item" data-tab="logs">
+          <i data-lucide="book-open"></i>
+          <span>日記時光機</span>
+        </a>
+        <a href="#settings" class="nav-item" data-tab="settings">
+          <i data-lucide="settings"></i>
+          <span>系統設定</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="api-status-badge" id="api-status-indicator">
+          <span class="status-dot warning"></span>
+          <span class="status-text">Gemini 載入中...</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Top header -->
+      <header class="content-header">
+        <div class="header-title-area">
+          <h2 id="page-title">身心儀表板</h2>
+          <p id="page-subtitle" class="text-muted">追蹤您的日常情緒、壓力和焦慮趨勢</p>
+        </div>
+        <div class="user-profile">
+          <div class="date-today" id="current-date-display">2026年6月17日</div>
+        </div>
+      </header>
+
+      <!-- TAB 1: Dashboard -->
+      <section id="tab-dashboard" class="tab-pane active">
+        <!-- Overview Stats Grid -->
+        <div class="stats-grid">
+          <div class="stat-card emotion">
+            <div class="stat-icon"><i data-lucide="smile"></i></div>
+            <div class="stat-info">
+              <h3>平均情緒分數</h3>
+              <div class="stat-value" id="avg-emotion">--</div>
+              <p class="stat-desc">整體正負向情感</p>
+            </div>
+            <div class="stat-glow"></div>
+          </div>
+
+          <div class="stat-card stress">
+            <div class="stat-icon"><i data-lucide="activity"></i></div>
+            <div class="stat-info">
+              <h3>平均壓力指數</h3>
+              <div class="stat-value" id="avg-stress">--</div>
+              <p class="stat-desc">工作、課業與生活壓力</p>
+            </div>
+            <div class="stat-glow"></div>
+          </div>
+
+          <div class="stat-card anxiety">
+            <div class="stat-icon"><i data-lucide="alert-circle"></i></div>
+            <div class="stat-info">
+              <h3>平均焦慮指數</h3>
+              <div class="stat-value" id="avg-anxiety">--</div>
+              <p class="stat-desc">擔憂與不安感評估</p>
+            </div>
+            <div class="stat-glow"></div>
+          </div>
+
+          <div class="stat-card stability">
+            <div class="stat-icon"><i data-lucide="heart"></i></div>
+            <div class="stat-info">
+              <h3>情緒穩定度</h3>
+              <div class="stat-value" id="avg-stability">--</div>
+              <p class="stat-desc">近期心理狀態起伏</p>
+            </div>
+            <div class="stat-glow"></div>
+          </div>
+        </div>
+
+        <!-- Charts and Details Grid -->
+        <div class="dashboard-grid">
+          <!-- Chart Card: Trends -->
+          <div class="glass-card chart-card-large">
+            <div class="card-header">
+              <h3><i data-lucide="trending-up"></i> 近期心理狀態趨勢</h3>
+              <div class="chart-actions">
+                <span class="badge">最近 14 天</span>
+              </div>
+            </div>
+            <div class="chart-container">
+              <canvas id="trendChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Chart Card: Stress vs Anxiety -->
+          <div class="glass-card chart-card-small">
+            <div class="card-header">
+              <h3><i data-lucide="bar-chart-2"></i> 壓力與焦慮關聯</h3>
+            </div>
+            <div class="chart-container">
+              <canvas id="radarChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Emotional Word Clouds -->
+          <div class="glass-card keyword-card">
+            <div class="card-header">
+              <h3><i data-lucide="tags"></i> 常用正向情感詞</h3>
+            </div>
+            <div class="keyword-cloud positive" id="pos-keywords">
+              <p class="text-muted">尚無足夠數據</p>
+            </div>
+          </div>
+
+          <div class="glass-card keyword-card">
+            <div class="card-header">
+              <h3><i data-lucide="alert-triangle"></i> 常用負向情感詞</h3>
+            </div>
+            <div class="keyword-cloud negative" id="neg-keywords">
+              <p class="text-muted">尚無足夠數據</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: Write Diary -->
+      <section id="tab-write" class="tab-pane">
+        <div class="diary-editor-layout">
+          <!-- Editor card -->
+          <div class="glass-card editor-card">
+            <div class="editor-header">
+              <div class="input-group-inline">
+                <label for="diary-date">選擇日期：</label>
+                <input type="date" id="diary-date" class="form-control-date">
+              </div>
+              <div class="editor-status" id="save-status">未儲存</div>
+            </div>
+            
+            <textarea id="diary-content" class="diary-textarea" placeholder="今天發生了什麼事？你的心情如何？寫下任何你想表達的想法、感受或壓力..."></textarea>
+            
+            <div class="editor-footer">
+              <div class="character-count"><span id="char-count">0</span> 字</div>
+              <button class="btn btn-primary" id="btn-analyze-save">
+                <i data-lucide="sparkles"></i> AI 分析並儲存日記
+              </button>
+            </div>
+          </div>
+
+          <!-- Analysis Results Panel -->
+          <div class="glass-card analysis-panel" id="analysis-panel">
+            <div class="analysis-panel-placeholder" id="analysis-placeholder">
+              <i data-lucide="sparkles" class="floating-icon"></i>
+              <h3>等待 AI 分析</h3>
+              <p>撰寫日記並點擊「AI 分析並儲存」後，此處將顯示詳細的情緒、壓力、焦慮等心理指標與專業建議。</p>
+            </div>
+
+            <div class="analysis-panel-content hidden" id="analysis-result-view">
+              <div class="analysis-section-title">
+                <h3><i data-lucide="sparkles"></i> AI 心理分析報告</h3>
+                <span class="badge success" id="result-status">分析完成</span>
+              </div>
+
+              <!-- Indicators breakdown -->
+              <div class="result-metrics">
+                <div class="metric-item">
+                  <div class="metric-label">情緒分數 <span id="metric-val-emotion">0</span></div>
+                  <div class="progress-bar">
+                    <div class="progress-fill emotion" id="progress-emotion" style="width: 0%"></div>
+                  </div>
+                </div>
+
+                <div class="metric-item">
+                  <div class="metric-label">壓力指數 <span id="metric-val-stress">0</span></div>
+                  <div class="progress-bar">
+                    <div class="progress-fill stress" id="progress-stress" style="width: 0%"></div>
+                  </div>
+                </div>
+
+                <div class="metric-item">
+                  <div class="metric-label">焦慮指數 <span id="metric-val-anxiety">0</span></div>
+                  <div class="progress-bar">
+                    <div class="progress-fill anxiety" id="progress-anxiety" style="width: 0%"></div>
+                  </div>
+                </div>
+
+                <div class="metric-item">
+                  <div class="metric-label">穩定度指數 <span id="metric-val-stability">0</span></div>
+                  <div class="progress-bar">
+                    <div class="progress-fill stability" id="progress-stability" style="width: 0%"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Keywords -->
+              <div class="emotion-tags-container">
+                <div class="tags-group">
+                  <span class="tags-label">正向詞：</span>
+                  <div class="tags-list" id="result-pos-tags"></div>
+                </div>
+                <div class="tags-group">
+                  <span class="tags-label">負向詞：</span>
+                  <div class="tags-list" id="result-neg-tags"></div>
+                </div>
+              </div>
+
+              <!-- Summary -->
+              <div class="report-box summary-box">
+                <h4><i data-lucide="bookmark"></i> 心靈語意摘要</h4>
+                <p id="result-summary">日記摘要內容...</p>
+              </div>
+
+              <!-- Advice -->
+              <div class="report-box advice-box">
+                <h4><i data-lucide="lightbulb"></i> 溫馨建議與關懷</h4>
+                <p id="result-advice">AI 心理健康建議...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: Diary Logs (History) -->
+      <section id="tab-logs" class="tab-pane">
+        <div class="logs-container">
+          <div class="logs-header-bar">
+            <div class="search-box">
+              <i data-lucide="search"></i>
+              <input type="text" id="log-search-input" placeholder="搜尋日記內容或情感特徵...">
+            </div>
+            <div class="sort-box">
+              <label for="log-sort-select">排序：</label>
+              <select id="log-sort-select" class="form-control-select">
+                <option value="desc">日期由新到舊</option>
+                <option value="asc">日期由舊到新</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Logs Timeline / List -->
+          <div class="logs-timeline" id="logs-timeline-list">
+            <!-- Dynamic Insertion -->
+            <div class="text-center p-5 text-muted">正在載入日記歷史紀錄...</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: Settings -->
+      <section id="tab-settings" class="tab-pane">
+        <div class="settings-layout">
+          <div class="glass-card settings-card">
+            <h3><i data-lucide="settings"></i> 系統配置</h3>
+            <p class="text-muted">設定您的 AI 密鑰或匯入測試數據以評估系統功能。</p>
+
+            <hr class="divider">
+
+            <div class="form-group">
+              <label for="settings-api-key">Gemini API Key (自訂金鑰)</label>
+              <input type="password" id="settings-api-key" class="form-control" placeholder="輸入您的 AI API 金鑰 (例如 AIzaSy...)">
+              <p class="form-help">如果後端 <code>.env</code> 檔案中已設定 <code>GEMINI_API_KEY</code>，則此處可留空。自訂金鑰會儲存在本機瀏覽器中。</p>
+            </div>
+
+            <div class="form-actions">
+              <button class="btn btn-primary" id="btn-save-settings">儲存設定</button>
+            </div>
+          </div>
+
+          <div class="glass-card settings-card">
+            <h3><i data-lucide="database"></i> 數據管理與測試</h3>
+            <p class="text-muted">快速填充模擬數據以測試情緒變化趨勢圖與統計數據。</p>
+
+            <hr class="divider">
+
+            <div class="mock-data-actions">
+              <p class="mb-3">這將在本系統中新增 7 篇不同情緒起伏（從壓力焦慮到逐漸放鬆）的模擬日記，幫助您快速體驗心理變化曲線圖表。</p>
+              <button class="btn btn-secondary" id="btn-load-mock">
+                <i data-lucide="plus-circle"></i> 載入一週模擬心理數據
+              </button>
+              <button class="btn btn-danger" id="btn-clear-db">
+                <i data-lucide="trash-2"></i> 清空資料庫所有日記
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Diary Detail Modal -->
+  <div class="modal-backdrop hidden" id="diary-detail-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modal-title">日記細節</h3>
+        <button class="modal-close" id="btn-close-modal"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-diary-content" id="modal-content">日記內容...</div>
+        <hr class="divider">
+        
+        <div class="modal-analysis-content">
+          <h4>AI 心理評估指標</h4>
+          <div class="modal-metrics-grid">
+            <div class="modal-metric">
+              <div class="metric-title">情緒分數</div>
+              <div class="metric-num text-emotion" id="modal-metric-emotion">0</div>
+            </div>
+            <div class="modal-metric">
+              <div class="metric-title">壓力指數</div>
+              <div class="metric-num text-stress" id="modal-metric-stress">0</div>
+            </div>
+            <div class="modal-metric">
+              <div class="metric-title">焦慮指數</div>
+              <div class="metric-num text-anxiety" id="modal-metric-anxiety">0</div>
+            </div>
+            <div class="modal-metric">
+              <div class="metric-title">情緒穩定</div>
+              <div class="metric-num text-stability" id="modal-metric-stability">0</div>
+            </div>
+          </div>
+
+          <div class="modal-summary-section">
+            <h5><i data-lucide="bookmark"></i> 心靈語意摘要</h5>
+            <p id="modal-summary">摘要...</p>
+          </div>
+
+          <div class="modal-advice-section">
+            <h5><i data-lucide="lightbulb"></i> 心理輔導與建議</h5>
+            <p id="modal-advice">建議...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
