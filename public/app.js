@@ -876,14 +876,13 @@ function setupFirebaseAuth() {
     }
   }
 
-  // Loads pre-defined Mock diary items representing typical psychological state shifts
   async function loadMockData() {
     els.btnLoadMock.disabled = true;
     els.btnLoadMock.textContent = '載入模擬資料中...';
 
     const mockDiaries = [
       {
-        date: '2026-06-10',
+        date: '2026-09-08',
         content: '今天期末考和專案發表全部卡在一起，主管又催促工作進度，整天頭痛欲裂，真的很焦慮，壓力爆棚，好想逃避這一切...',
         analysis: {
           emotion_score: 20,
@@ -897,7 +896,7 @@ function setupFirebaseAuth() {
         }
       },
       {
-        date: '2026-06-11',
+        date: '2026-09-09',
         content: '考完了一科，雖然表現一般般，但至少放下一個大石頭。不過專案還是有點卡關，晚上跟組員有些摩擦，心情沉悶。',
         analysis: {
           emotion_score: 35,
@@ -911,7 +910,7 @@ function setupFirebaseAuth() {
         }
       },
       {
-        date: '2026-06-12',
+        date: '2026-09-10',
         content: '專案卡關的地方居然被我想通了！下午重新修復了程式碼，跟組員道歉並好好談談，大家達成共識。心情稍微好轉了一些，晚上還去吃了一頓好吃的。',
         analysis: {
           emotion_score: 60,
@@ -925,7 +924,7 @@ function setupFirebaseAuth() {
         }
       },
       {
-        date: '2026-06-13',
+        date: '2026-09-11',
         content: '週末終於到了。今天睡到了中午，下午去附近的公園散散步，吹著微風，看著綠色的植物，心情很平靜，感覺這幾天的疲憊慢慢消散了。',
         analysis: {
           emotion_score: 75,
@@ -939,7 +938,7 @@ function setupFirebaseAuth() {
         }
       },
       {
-        date: '2026-06-14',
+        date: '2026-09-12',
         content: '跟老朋友聚餐，聊了很多以前的趣事，大家笑得很開心。原來大家都各自面臨不同的煩惱，但也都在努力生活。感受到了友情支持的力量，心裡暖暖的。',
         analysis: {
           emotion_score: 85,
@@ -953,7 +952,7 @@ function setupFirebaseAuth() {
         }
       },
       {
-        date: '2026-06-15',
+        date: '2026-09-13',
         content: '新的一週開始，回歸工作崗位。雖然代辦事項很多，但因為週末充飽了電，今天做起事來很有條理，心情雖然平淡，但效率很高，是充實的一天。',
         analysis: {
           emotion_score: 70,
@@ -967,7 +966,7 @@ function setupFirebaseAuth() {
         }
       },
       {
-        date: '2026-06-16',
+        date: '2026-09-14',
         content: '今天專案正式上線，一切順利！主管在會議上公開表揚了我們，真的非常有成就感。這陣子的辛苦都值得了。晚上睡前打算讀本好書，平靜地迎接明天。',
         analysis: {
           emotion_score: 95,
@@ -1000,7 +999,6 @@ function setupFirebaseAuth() {
       els.btnLoadMock.textContent = '載入一週模擬心理數據';
     }
   }
-
   // Start the application
   init();
 });

@@ -4,14 +4,6 @@ let db = null;
 
 const COLLECTION = 'diaries';
 
-
-// ==============================
-// 初始化資料庫
-// ==============================
-// 注意：這個函式必須在 server.js 裡的 initializeApp(...) 執行「之後」
-// 才能呼叫，否則 getFirestore() 會找不到已初始化的 Firebase App。
-// server.js 目前的呼叫順序已經是正確的（先 initializeApp，才 db.init()）。
-
 function init() {
   db = getFirestore();
   console.log('Firestore 資料庫已連接');
@@ -19,18 +11,10 @@ function init() {
 }
 
 
-// ==============================
-// 文件 ID 規則：同一個使用者同一天只會有一篇日記
-// ==============================
-
 function diaryDocId(user_id, date) {
   return `${user_id}_${date}`;
 }
 
-
-// ==============================
-// 儲存 / 更新日記
-// ==============================
 
 async function saveDiary(diaryData) {
 
@@ -77,11 +61,6 @@ async function saveDiary(diaryData) {
   };
 }
 
-
-// ==============================
-// 查詢某一天
-// ==============================
-
 async function getDiaryByDate(user_id, date) {
 
   const docRef = db.collection(COLLECTION).doc(diaryDocId(user_id, date));
@@ -97,16 +76,7 @@ async function getDiaryByDate(user_id, date) {
   };
 }
 
-
-// ==============================
-// 查詢該使用者全部日記
-// ==============================
-
 async function getAllDiaries(user_id) {
-
-  // 只用單一欄位的相等過濾（where user_id == ...），不額外加 orderBy，
-  // 這樣不需要在 Firestore 主控台建立複合索引（composite index）。
-  // 排序改成拿到資料後在程式裡做。
   const snapshot = await db
     .collection(COLLECTION)
     .where('user_id', '==', user_id)
@@ -122,11 +92,6 @@ async function getAllDiaries(user_id) {
   return diaries;
 }
 
-
-// ==============================
-// 刪除
-// ==============================
-
 async function deleteDiary(user_id, date) {
 
   const docRef = db.collection(COLLECTION).doc(diaryDocId(user_id, date));
@@ -140,7 +105,6 @@ async function deleteDiary(user_id, date) {
 
   return { changes: 1 };
 }
-
 
 module.exports = {
   init,
