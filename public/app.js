@@ -18,7 +18,21 @@ import {
 
 document.addEventListener('DOMContentLoaded', () => {
   // Initialize Lucide Icons
-  lucide.createIcons();
+  // Wrapped in try/catch: if the CDN script failed to load (blocked,
+  // offline, slow network), `lucide` may be undefined. Without this
+  // guard, an error here would abort the rest of this callback and
+  // silently prevent setupGoogleLogin()/setupEventListeners() from
+  // ever running — which makes every button on the page (including
+  // Google login) appear completely unresponsive.
+  try {
+    if (typeof lucide !== 'undefined') {
+      lucide.createIcons();
+    } else {
+      console.warn('lucide 未載入，圖示將不會顯示（不影響其他功能）');
+    }
+  } catch (e) {
+    console.warn('lucide.createIcons() 失敗:', e);
+  }
 
   // App State
   const state = {
@@ -95,7 +109,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Settings
     settingsApiKey: document.getElementById('settings-api-key'),
     btnSaveSettings: document.getElementById('btn-save-settings'),
-    btnLoadMock: document.getElementById('btn-load-mock'),
     btnClearDb: document.getElementById('btn-clear-db'),
     
     // Modal
@@ -276,34 +289,31 @@ function setupFirebaseAuth() {
     });
 
     // Word count in textarea
-    els.diaryContent.addEventListener('input', () => {
+    els.diaryContent?.addEventListener('input', () => {
       els.charCount.textContent = els.diaryContent.value.length;
     });
 
     // Save & Analyze Diary
-    els.btnAnalyzeSave.addEventListener('click', handleAnalyzeAndSave);
+    els.btnAnalyzeSave?.addEventListener('click', handleAnalyzeAndSave);
 
     // Save Settings
-    els.btnSaveSettings.addEventListener('click', saveSettings);
-
-    // Load Mock Data
-    els.btnLoadMock.addEventListener('click', loadMockData);
+    els.btnSaveSettings?.addEventListener('click', saveSettings);
 
     // Clear Database
-    els.btnClearDb.addEventListener('click', clearDatabase);
+    els.btnClearDb?.addEventListener('click', clearDatabase);
 
     // Logs Filtering & Sorting
-    els.logSearchInput.addEventListener('input', renderLogs);
-    els.logSortSelect.addEventListener('change', renderLogs);
+    els.logSearchInput?.addEventListener('input', renderLogs);
+    els.logSortSelect?.addEventListener('change', renderLogs);
 
     // Close Modal
-    els.btnCloseModal.addEventListener('click', closeModal);
-    els.diaryDetailModal.addEventListener('click', (e) => {
+    els.btnCloseModal?.addEventListener('click', closeModal);
+    els.diaryDetailModal?.addEventListener('click', (e) => {
       if (e.target === els.diaryDetailModal) closeModal();
     });
 
     // Date change loads existing diary if any
-    els.diaryDate.addEventListener('change', loadDiaryForSelectedDate);
+    els.diaryDate?.addEventListener('change', loadDiaryForSelectedDate);
   }
 
   // --- TAB NAVIGATION ---
@@ -876,129 +886,6 @@ function setupFirebaseAuth() {
     }
   }
 
-  async function loadMockData() {
-    els.btnLoadMock.disabled = true;
-    els.btnLoadMock.textContent = '載入模擬資料中...';
-
-    const mockDiaries = [
-      {
-        date: '2026-09-08',
-        content: '今天期末考和專案發表全部卡在一起，主管又催促工作進度，整天頭痛欲裂，真的很焦慮，壓力爆棚，好想逃避這一切...',
-        analysis: {
-          emotion_score: 20,
-          stress_index: 92,
-          anxiety_index: 88,
-          stability_index: 40,
-          positive_emotions: ['堅持'],
-          negative_emotions: ['焦慮', '壓力', '頭痛', '無力'],
-          summary: '面臨多重課業與工作壓力重疊，生理與心理處於高度緊繃狀態，有強烈的逃避與無助感。',
-          advice: '請先深呼吸。暫時離開書桌，進行 5-10 分鐘的腹式呼吸以緩解焦慮。建議分工並列出輕重緩急清單，降低失控感。今晚必須保證充足睡眠。'
-        }
-      },
-      {
-        date: '2026-09-09',
-        content: '考完了一科，雖然表現一般般，但至少放下一個大石頭。不過專案還是有點卡關，晚上跟組員有些摩擦，心情沉悶。',
-        analysis: {
-          emotion_score: 35,
-          stress_index: 80,
-          anxiety_index: 70,
-          stability_index: 48,
-          positive_emotions: ['釋懷'],
-          negative_emotions: ['沉悶', '摩擦', '卡關'],
-          summary: '考試壓力有所釋放，但人際摩擦與專案瓶頸帶來了新的煩悶與低氣壓。',
-          advice: '與組員意見分歧是必經過程，建議先給彼此沉澱時間再溝通。今天可嘗試溫水泡腳，放鬆緊繃的神經。'
-        }
-      },
-      {
-        date: '2026-09-10',
-        content: '專案卡關的地方居然被我想通了！下午重新修復了程式碼，跟組員道歉並好好談談，大家達成共識。心情稍微好轉了一些，晚上還去吃了一頓好吃的。',
-        analysis: {
-          emotion_score: 60,
-          stress_index: 60,
-          anxiety_index: 45,
-          stability_index: 65,
-          positive_emotions: ['開心', '突破', '共識', '享受'],
-          negative_emotions: ['疲憊'],
-          summary: '專案突破並成功與團隊修復關係，情緒大幅回升，體會到成就感。',
-          advice: '非常棒的進展！適時的犒賞自己是維持動力的關鍵。繼續保持這種主動溝通的步調。'
-        }
-      },
-      {
-        date: '2026-09-11',
-        content: '週末終於到了。今天睡到了中午，下午去附近的公園散散步，吹著微風，看著綠色的植物，心情很平靜，感覺這幾天的疲憊慢慢消散了。',
-        analysis: {
-          emotion_score: 75,
-          stress_index: 30,
-          anxiety_index: 25,
-          stability_index: 80,
-          positive_emotions: ['平靜', '放鬆', '舒暢'],
-          negative_emotions: [],
-          summary: '透過週末休息與大自然接觸，成功釋放累積的壓力，身心穩定度高。',
-          advice: '大自然具有很強的療癒力量。多進行類似的戶外溫和活動，有助於重整大腦認知功能，建議晚上可以記錄自己感恩的三件事。'
-        }
-      },
-      {
-        date: '2026-09-12',
-        content: '跟老朋友聚餐，聊了很多以前的趣事，大家笑得很開心。原來大家都各自面臨不同的煩惱，但也都在努力生活。感受到了友情支持的力量，心裡暖暖的。',
-        analysis: {
-          emotion_score: 85,
-          stress_index: 20,
-          anxiety_index: 15,
-          stability_index: 90,
-          positive_emotions: ['溫暖', '開心', '支持', '充實'],
-          negative_emotions: [],
-          summary: '藉由社交聚會與情感交流獲得高能量的社會支持，情緒積極且溫馨。',
-          advice: '維繫良好的社交連結是心理健康的重要支柱。感到疲憊時，向信任的朋友傾訴或共享時光能帶來極佳的解壓效果。'
-        }
-      },
-      {
-        date: '2026-09-13',
-        content: '新的一週開始，回歸工作崗位。雖然代辦事項很多，但因為週末充飽了電，今天做起事來很有條理，心情雖然平淡，但效率很高，是充實的一天。',
-        analysis: {
-          emotion_score: 70,
-          stress_index: 45,
-          anxiety_index: 30,
-          stability_index: 85,
-          positive_emotions: ['充實', '平穩', '條理'],
-          negative_emotions: [],
-          summary: '週一開工，身心恢復良好，能從容面對工作事項，展現良好的心理韌性。',
-          advice: '良好的時間管理能幫助維持目前平穩的節奏。每工作 50 分鐘記得起來伸展 5 分鐘，保持身體微循環。'
-        }
-      },
-      {
-        date: '2026-09-14',
-        content: '今天專案正式上線，一切順利！主管在會議上公開表揚了我們，真的非常有成就感。這陣子的辛苦都值得了。晚上睡前打算讀本好書，平靜地迎接明天。',
-        analysis: {
-          emotion_score: 95,
-          stress_index: 15,
-          anxiety_index: 10,
-          stability_index: 92,
-          positive_emotions: ['成就感', '滿足', '喜悅', '平靜'],
-          negative_emotions: [],
-          summary: '專案圓滿成功並獲得正向肯定，心情愉悅且充滿自我效能感。',
-          advice: '恭喜專案成功！這是對你努力的最佳肯定。享受此刻的喜悅，並將這個成功經驗內化為心理資本。今晚適合閱讀或冥想，維持高品質睡眠。'
-        }
-      }
-    ];
-
-    try {
-      for (const item of mockDiaries) {
-        await fetch('/api/diaries', {
-          method: 'POST',
-          headers: await getAuthHeaders(),
-          body: JSON.stringify(item)
-        });
-      }
-      alert('一週模擬心理數據載入成功！');
-      loadAllData();
-    } catch (e) {
-      console.error(e);
-      alert('模擬資料載入失敗');
-    } finally {
-      els.btnLoadMock.disabled = false;
-      els.btnLoadMock.textContent = '載入一週模擬心理數據';
-    }
-  }
   // Start the application
   init();
 });
