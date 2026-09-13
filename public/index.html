@@ -65,7 +65,18 @@
           <p id="page-subtitle" class="text-muted">追蹤您的日常情緒、壓力和焦慮趨勢</p>
         </div>
         <div class="user-profile">
-          <div class="date-today" id="current-date-display">2026年6月17日</div>
+          <div class="date-today" id="current-date-display">
+            2026年6月17日
+          </div>
+          <div class="firebase-user">
+            <span id="user-email">尚未登入</span>
+            <button id="btn-google-login" class="btn btn-primary">
+              Google 登入
+            </button>
+            <button id="btn-google-logout" class="btn btn-secondary hidden">
+              登出
+            </button>
+          </div>
         </div>
       </header>
 
@@ -368,6 +379,6 @@
     </div>
   </div>
 
-  <script src="app.js"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>

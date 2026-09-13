@@ -1,3 +1,21 @@
+import {
+    auth,
+    googleProvider,
+    db
+} from "./firebase.js";
+
+import {
+    signInWithPopup,
+    signOut,
+    onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+
+import {
+    doc,
+    setDoc,
+    serverTimestamp
+} from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+
 document.addEventListener('DOMContentLoaded', () => {
   // Initialize Lucide Icons
   lucide.createIcons();
@@ -10,11 +28,24 @@ document.addEventListener('DOMContentLoaded', () => {
     apiStatus: { hasEnvKey: false },
     customApiKey: localStorage.getItem('gemini_api_key') || '',
     selectedDiary: null,
+    currentUser: null,
     charts: {
       trend: null,
       radar: null
     }
   };
+
+  async function getAuthHeaders() {
+  if (!state.currentUser) {
+    throw new Error('請先登入 Google 帳號');
+  }
+  const token =
+    await state.currentUser.getIdToken();
+  return {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  };
+}
 
   // UI Elements
   const els = {
@@ -81,29 +112,157 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // --- INITIALIZATION ---
-  function init() {
-    // Set default date to today in local timezone
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
-    els.diaryDate.value = `${yyyy}-${mm}-${dd}`;
-    els.currentDateDisplay.textContent = today.toLocaleDateString('zh-TW', {
+ function init() {
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, '0');
+  els.diaryDate.value =
+    `${yyyy}-${mm}-${dd}`;
+  els.currentDateDisplay.textContent =
+    today.toLocaleDateString('zh-TW', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
       weekday: 'long'
     });
 
-    // Populate Settings UI
-    if (state.customApiKey) {
-      els.settingsApiKey.value = state.customApiKey;
+  if (state.customApiKey) {
+    els.settingsApiKey.value =
+      state.customApiKey;
+  }
+  setupEventListeners();
+  setupGoogleLogin();
+  setupFirebaseAuth();
+  checkApiStatus();
+}
+
+function setupGoogleLogin() {
+    const loginButton =
+        document.getElementById("btn-google-login");
+    const logoutButton =
+        document.getElementById("btn-google-logout");
+    const userEmail =
+        document.getElementById("user-email");
+    loginButton?.addEventListener("click", async () => {
+        try {
+            const result =
+                await signInWithPopup(auth, googleProvider);
+            console.log("Google 登入成功");
+            console.log("UID:", result.user.uid);
+            console.log("Email:", result.user.email);
+        } catch (error) {
+            console.error("Google 登入失敗:", error);
+            alert(
+                "Google 登入失敗：" +
+                error.message
+            );
+        }
+    });
+
+    logoutButton?.addEventListener("click", async () => {
+        try {
+            await signOut(auth);
+            console.log("已登出");
+        } catch (error) {
+            console.error("登出失敗:", error);
+        }
+    });
+}
+
+function setupFirebaseAuth() {
+
+  onAuthStateChanged(auth, async (user) => {
+
+    const loginButton =
+      document.getElementById("btn-google-login");
+
+    const logoutButton =
+      document.getElementById("btn-google-logout");
+
+    const userEmail =
+      document.getElementById("user-email");
+
+
+    if (user) {
+
+      state.currentUser = user;
+
+      console.log("Firebase 登入成功");
+      console.log("UID:", user.uid);
+      console.log("Email:", user.email);
+      console.log("Name:", user.displayName);
+
+
+      if (userEmail) {
+
+        userEmail.textContent =
+          user.email ||
+          user.displayName ||
+          "已登入";
+
+      }
+
+
+      loginButton?.classList.add("hidden");
+      logoutButton?.classList.remove("hidden");
+
+
+      try {
+
+        await setDoc(
+          doc(db, "users", user.uid),
+          {
+            name: user.displayName || "",
+            email: user.email || "",
+            photoURL: user.photoURL || "",
+            lastLoginAt: serverTimestamp()
+          },
+          {
+            merge: true
+          }
+        );
+
+
+        console.log(
+          "Firestore 使用者資料已建立"
+        );
+
+
+        // 登入完成後再載入自己的日記
+        await loadAllData();
+
+      } catch (error) {
+
+        console.error(
+          "Firestore 使用者資料建立失敗:",
+          error
+        );
+
+      }
+
+    } else {
+
+      state.currentUser = null;
+
+      console.log(
+        "目前沒有 Firebase 使用者"
+      );
+
+
+      if (userEmail) {
+        userEmail.textContent = "尚未登入";
+      }
+
+
+      loginButton?.classList.remove("hidden");
+      logoutButton?.classList.add("hidden");
+
     }
 
-    setupEventListeners();
-    checkApiStatus();
-    loadAllData();
-  }
+  });
+
+}
 
   // --- EVENT LISTENERS ---
   function setupEventListeners() {
@@ -219,11 +378,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function loadAllData() {
     try {
-      const statsRes = await fetch('/api/stats');
+      const statsRes = await fetch('/api/stats', {
+  headers: await getAuthHeaders()
+});
       const stats = await statsRes.json();
       state.stats = stats;
       
-      const diariesRes = await fetch('/api/diaries');
+      const diariesRes = await fetch('/api/diaries', {
+  headers: await getAuthHeaders()
+});
       state.diaries = await diariesRes.json();
 
       updateDashboardStats();
@@ -235,7 +398,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function loadLogs() {
     try {
-      const res = await fetch('/api/diaries');
+      const res = await fetch('/api/diaries', {
+  headers: await getAuthHeaders()
+});
       state.diaries = await res.json();
       renderLogs();
     } catch (e) {
@@ -252,7 +417,9 @@ document.addEventListener('DOMContentLoaded', () => {
     els.saveStatus.className = 'editor-status';
 
     try {
-      const res = await fetch(`/api/diaries/${date}`);
+      const res = await fetch(`/api/diaries/${date}`, {
+  headers: await getAuthHeaders()
+});
       if (res.ok) {
         const diary = await res.json();
         els.diaryContent.value = diary.content;
@@ -313,7 +480,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // Step 1: Analyze
       const analyzeRes = await fetch('/api/diaries/analyze', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await getAuthHeaders(),
         body: JSON.stringify({
           content,
           key: state.customApiKey
@@ -328,9 +495,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const analysisResult = await analyzeRes.json();
 
       // Step 2: Save
-      const saveRes = await fetch('/api/diaries', {
+     const saveRes = await fetch('/api/diaries', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+         headers: await getAuthHeaders(),
         body: JSON.stringify({
           date,
           content,
@@ -636,7 +803,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     try {
-      const res = await fetch(`/api/diaries/${date}`, { method: 'DELETE' });
+     const res = await fetch(`/api/diaries/${date}`, {
+  method: 'DELETE',
+  headers: await getAuthHeaders()
+});
       if (res.ok) {
         loadLogs();
       } else {
@@ -690,11 +860,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     try {
-      const fetchAll = await fetch('/api/diaries');
+      const authHeaders = await getAuthHeaders();
+      const fetchAll = await fetch('/api/diaries', { headers: authHeaders });
       const list = await fetchAll.json();
       
       for (const d of list) {
-        await fetch(`/api/diaries/${d.date}`, { method: 'DELETE' });
+        await fetch(`/api/diaries/${d.date}`, { method: 'DELETE', headers: authHeaders });
       }
 
       alert('資料庫已清空！');
@@ -815,7 +986,7 @@ document.addEventListener('DOMContentLoaded', () => {
       for (const item of mockDiaries) {
         await fetch('/api/diaries', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: await getAuthHeaders(),
           body: JSON.stringify(item)
         });
       }
