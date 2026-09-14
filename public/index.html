@@ -4,6 +4,21 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AI 心理日記量測系統 | 心靈微光</title>
+  <!-- Set the theme before first paint to avoid a flash of the wrong theme -->
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem('theme');
+        var prefersLight = window.matchMedia &&
+          window.matchMedia('(prefers-color-scheme: light)').matches;
+        var theme = saved || (prefersLight ? 'light' : 'dark');
+        document.documentElement.setAttribute('data-theme', theme);
+      } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    })();
+  </script>
+  <meta name="theme-color" content="#0b0f19">
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -49,6 +64,12 @@
       </nav>
 
       <div class="sidebar-footer">
+        <button id="btn-theme-toggle" class="theme-toggle" type="button" aria-label="切換淺色/深色模式" title="切換淺色/深色模式">
+          <i data-lucide="sun" class="icon-sun"></i>
+          <i data-lucide="moon" class="icon-moon"></i>
+          <span class="theme-toggle-text-light">切換為淺色模式</span>
+          <span class="theme-toggle-text-dark">切換為深色模式</span>
+        </button>
         <div class="api-status-badge" id="api-status-indicator">
           <span class="status-dot warning"></span>
           <span class="status-text">Gemini 載入中...</span>
@@ -56,10 +77,16 @@
       </div>
     </aside>
 
+    <!-- Backdrop shown behind the sidebar when it's opened as a mobile drawer -->
+    <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
     <!-- Main Content Area -->
     <main class="main-content">
       <!-- Top header -->
       <header class="content-header">
+        <button id="btn-mobile-menu" class="mobile-menu-toggle" type="button" aria-label="開啟選單">
+          <i data-lucide="menu"></i>
+        </button>
         <div class="header-title-area">
           <h2 id="page-title">身心儀表板</h2>
           <p id="page-subtitle" class="text-muted">追蹤您的日常情緒、壓力和焦慮趨勢</p>

@@ -147,7 +147,94 @@ document.addEventListener('DOMContentLoaded', () => {
   setupEventListeners();
   setupGoogleLogin();
   setupFirebaseAuth();
+  setupThemeToggle();
+  setupMobileMenu();
   checkApiStatus();
+}
+
+// --- THEME (light / dark mode) ---
+function setupThemeToggle() {
+  const toggleBtn = document.getElementById('btn-theme-toggle');
+  const root = document.documentElement;
+
+  function applyMetaThemeColor(theme) {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) {
+      meta.setAttribute('content', theme === 'light' ? '#f4f3fb' : '#0b0f19');
+    }
+  }
+
+  // The <head> inline script already set data-theme before first paint;
+  // just make sure the meta theme-color tag matches it.
+  applyMetaThemeColor(root.getAttribute('data-theme') === 'light' ? 'light' : 'dark');
+
+  toggleBtn?.addEventListener('click', () => {
+    const current = root.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+    const next = current === 'light' ? 'dark' : 'light';
+    root.setAttribute('data-theme', next);
+    try {
+      localStorage.setItem('theme', next);
+    } catch (e) {
+      // localStorage may be unavailable (private mode etc.); theme just
+      // won't persist across reloads, which is a harmless degradation.
+    }
+    applyMetaThemeColor(next);
+
+    // Chart.js bakes colors into the chart instance at creation time,
+    // so re-draw the dashboard charts to pick up the new theme's colors.
+    if (state.stats) {
+      renderDashboardCharts();
+    }
+  });
+}
+
+// --- MOBILE NAV DRAWER ---
+function setupMobileMenu() {
+  const menuBtn = document.getElementById('btn-mobile-menu');
+  const sidebar = document.querySelector('.sidebar');
+  const backdrop = document.getElementById('sidebar-backdrop');
+
+  function closeMenu() {
+    sidebar?.classList.remove('open');
+    backdrop?.classList.remove('open');
+    document.body.classList.remove('no-scroll');
+  }
+
+  function openMenu() {
+    sidebar?.classList.add('open');
+    backdrop?.classList.add('open');
+    document.body.classList.add('no-scroll');
+  }
+
+  menuBtn?.addEventListener('click', () => {
+    if (sidebar?.classList.contains('open')) {
+      closeMenu();
+    } else {
+      openMenu();
+    }
+  });
+
+  backdrop?.addEventListener('click', closeMenu);
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeMenu();
+  });
+
+  // Selecting a section closes the drawer too (mobile UX)
+  els.navItems.forEach(item => {
+    item.addEventListener('click', closeMenu);
+  });
+}
+
+// Colors for Chart.js that follow the current light/dark theme, since
+// Chart.js doesn't read CSS variables on its own.
+function getChartThemeColors() {
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  return {
+    text: isLight ? '#6b6478' : '#94a3b8',
+    grid: isLight ? 'rgba(30, 27, 46, 0.08)' : 'rgba(255, 255, 255, 0.05)',
+    gridStrong: isLight ? 'rgba(30, 27, 46, 0.12)' : 'rgba(255, 255, 255, 0.08)'
+  };
 }
 
 function setupGoogleLogin() {
@@ -637,6 +724,8 @@ function setupFirebaseAuth() {
       state.charts.trend.destroy();
     }
 
+    const themeColors = getChartThemeColors();
+
     const ctxTrend = document.getElementById('trendChart').getContext('2d');
     state.charts.trend = new Chart(ctxTrend, {
       type: 'line',
@@ -672,19 +761,19 @@ function setupFirebaseAuth() {
         maintainAspectRatio: false,
         plugins: {
           legend: {
-            labels: { color: '#94a3b8', font: { family: 'Outfit' } }
+            labels: { color: themeColors.text, font: { family: 'Outfit' } }
           }
         },
         scales: {
           y: {
             min: 0,
             max: 100,
-            grid: { color: 'rgba(255, 255, 255, 0.05)' },
-            ticks: { color: '#94a3b8' }
+            grid: { color: themeColors.grid },
+            ticks: { color: themeColors.text }
           },
           x: {
             grid: { display: false },
-            ticks: { color: '#94a3b8' }
+            ticks: { color: themeColors.text }
           }
         }
       }
@@ -718,9 +807,9 @@ function setupFirebaseAuth() {
         },
         scales: {
           r: {
-            angleLines: { color: 'rgba(255, 255, 255, 0.08)' },
-            grid: { color: 'rgba(255, 255, 255, 0.08)' },
-            pointLabels: { color: '#94a3b8', font: { family: 'Outfit', size: 12 } },
+            angleLines: { color: themeColors.gridStrong },
+            grid: { color: themeColors.gridStrong },
+            pointLabels: { color: themeColors.text, font: { family: 'Outfit', size: 12 } },
             ticks: { display: false },
             min: 0,
             max: 100
