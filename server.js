@@ -7,12 +7,6 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Use the modular firebase-admin submodule imports instead of the
-// top-level `require('firebase-admin')` namespace object. Newer
-// firebase-admin releases have been inconsistent about which properties
-// (apps / credential / auth) are exposed on that top-level object, but
-// 'firebase-admin/app' and 'firebase-admin/auth' are the stable,
-// documented entry points across current versions.
 const { initializeApp, cert, getApps } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
 
