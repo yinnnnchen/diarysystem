@@ -19,9 +19,6 @@
   --color-anxiety: #f59e0b; /* Amber */
   --color-stability: #3b82f6; /* Blue */
 
-  /* Neutral overlay tints used for subtle fills (inputs, hovers, boxes).
-     Defined as variables so the light theme below can flip them from
-     "white wash" to "ink wash" without touching every rule. */
   --overlay-1: rgba(255, 255, 255, 0.01);
   --overlay-2: rgba(255, 255, 255, 0.02);
   --overlay-3: rgba(255, 255, 255, 0.03);

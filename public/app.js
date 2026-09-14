@@ -17,13 +17,6 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Initialize Lucide Icons
-  // Wrapped in try/catch: if the CDN script failed to load (blocked,
-  // offline, slow network), `lucide` may be undefined. Without this
-  // guard, an error here would abort the rest of this callback and
-  // silently prevent setupGoogleLogin()/setupEventListeners() from
-  // ever running — which makes every button on the page (including
-  // Google login) appear completely unresponsive.
   try {
     if (typeof lucide !== 'undefined') {
       lucide.createIcons();
@@ -124,7 +117,6 @@ document.addEventListener('DOMContentLoaded', () => {
     btnCloseModal: document.getElementById('btn-close-modal')
   };
 
-  // --- INITIALIZATION ---
  function init() {
   const today = new Date();
   const yyyy = today.getFullYear();
@@ -152,7 +144,6 @@ document.addEventListener('DOMContentLoaded', () => {
   checkApiStatus();
 }
 
-// --- THEME (light / dark mode) ---
 function setupThemeToggle() {
   const toggleBtn = document.getElementById('btn-theme-toggle');
   const root = document.documentElement;
@@ -164,8 +155,6 @@ function setupThemeToggle() {
     }
   }
 
-  // The <head> inline script already set data-theme before first paint;
-  // just make sure the meta theme-color tag matches it.
   applyMetaThemeColor(root.getAttribute('data-theme') === 'light' ? 'light' : 'dark');
 
   toggleBtn?.addEventListener('click', () => {
@@ -226,8 +215,6 @@ function setupMobileMenu() {
   });
 }
 
-// Colors for Chart.js that follow the current light/dark theme, since
-// Chart.js doesn't read CSS variables on its own.
 function getChartThemeColors() {
   const isLight = document.documentElement.getAttribute('data-theme') === 'light';
   return {
