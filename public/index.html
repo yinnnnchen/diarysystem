@@ -114,6 +114,12 @@
         </div>
       </header>
 
+      <div class="disclaimer-bar" role="note">
+        <i data-lucide="info" style="width:16px;height:16px"></i>
+        <span>心靈微光是 AI 情緒紀錄與生活支持工具，<strong>並非醫療或心理諮商服務</strong>，分析結果不能取代專業診斷。
+        如感到困擾，請聯絡專業協助（安心專線 1925，24 小時）。你的日記僅有你本人能存取。</span>
+      </div>
+
       <!-- TAB 1: Dashboard -->
       <section id="tab-dashboard" class="tab-pane active">
         <div class="streak-badge-row">
@@ -122,27 +128,7 @@
           </span>
         </div>
 
-           <div class="glass-card heatmap-card">
-            <div class="card-header">
-              <h3><i data-lucide="calendar-days"></i> 情緒日曆熱圖</h3>
-              <div class="chart-actions">
-                <span class="badge">最近 12 週</span>
-              </div>
-            </div>
-            <div id="calendar-heatmap"></div>
-            <div class="heatmap-legend">
-              <span>低</span>
-              <span class="heatmap-cell level-1"></span>
-              <span class="heatmap-cell level-2"></span>
-              <span class="heatmap-cell level-3"></span>
-              <span class="heatmap-cell level-4"></span>
-              <span>高</span>
-              <span class="heatmap-cell level-0" style="margin-left:12px"></span>
-              <span>無紀錄</span>
-            </div>
-          </div>
-        
-          <!-- Overview Stats Grid -->
+        <!-- Overview Stats Grid -->
         <div class="stats-grid">
           <div class="stat-card emotion">
             <div class="stat-icon"><i data-lucide="smile"></i></div>
@@ -230,7 +216,25 @@
           </div>
 
           <!-- Calendar Heatmap -->
-          
+          <div class="glass-card heatmap-card">
+            <div class="card-header">
+              <h3><i data-lucide="calendar-days"></i> 情緒日曆熱圖</h3>
+              <div class="chart-actions">
+                <span class="badge">最近 12 週</span>
+              </div>
+            </div>
+            <div id="calendar-heatmap"></div>
+            <div class="heatmap-legend">
+              <span>低</span>
+              <span class="heatmap-cell level-1"></span>
+              <span class="heatmap-cell level-2"></span>
+              <span class="heatmap-cell level-3"></span>
+              <span class="heatmap-cell level-4"></span>
+              <span>高</span>
+              <span class="heatmap-cell level-0" style="margin-left:12px"></span>
+              <span>無紀錄</span>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -509,7 +513,7 @@
         <hr class="divider">
         
         <div class="modal-analysis-content">
-          <h4>AI 心理評估指標</h4>
+          <h4>AI 情緒分析指標</h4>
           <div class="modal-metrics-grid">
             <div class="modal-metric">
               <div class="metric-title">情緒分數</div>
@@ -535,7 +539,7 @@
           </div>
 
           <div class="modal-advice-section">
-            <h5><i data-lucide="lightbulb"></i> 心理輔導與建議</h5>
+            <h5><i data-lucide="lightbulb"></i> 生活與情緒支持建議</h5>
             <p id="modal-advice">建議...</p>
           </div>
         </div>

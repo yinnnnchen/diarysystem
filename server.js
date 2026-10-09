@@ -35,8 +35,29 @@ if (!getApps().length) {
   }
 }
 
-app.use(cors());
+// CORS 白名單：預設只允許本站網域與本機開發；可用 ALLOWED_ORIGINS（逗號分隔）覆寫
+const DEFAULT_ORIGINS = [
+  'https://aidiary-tap6.onrender.com',
+  `http://localhost:${PORT}`,
+  `http://127.0.0.1:${PORT}`
+];
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
+  : DEFAULT_ORIGINS;
+
+app.use(cors({
+  origin(origin, callback) {
+    // 沒有 Origin（同源請求、curl、健康檢查）直接放行；其餘必須在白名單內
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(null, false);
+  }
+}));
 app.use(express.json());
+
+// 健康檢查：供外部定時喚醒（避免 Render 免費方案休眠），不需登入、不碰資料庫
+app.get('/healthz', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
 
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -55,8 +76,6 @@ async function authenticateUser(req, res, next) {
     const decodedToken = await getAuth().verifyIdToken(idToken);
 
     req.user = decodedToken;
-
-    console.log('目前使用者 UID:', decodedToken.uid);
 
     next();
 
@@ -90,6 +109,13 @@ const CRISIS_KEYWORDS = [
   '自殘', '割腕', '傷害自己', '消失就好', '沒有存在的意義',
   '想離開這個世界', '解脫了'
 ];
+
+const RISK_LEVELS = ['none', 'low', 'medium', 'high'];
+
+function normalizeRiskLevel(value) {
+  const level = String(value || '').toLowerCase().trim();
+  return RISK_LEVELS.includes(level) ? level : 'none';
+}
 
 function detectCrisis(content) {
   if (!content) return false;
@@ -130,9 +156,7 @@ app.post('/api/diaries/analyze', authenticateUser, async (req, res) => {
 
   try {
 
-    console.log(
-      `AI 分析日記 - UID: ${req.user.uid}`
-    );
+    console.log('AI 分析日記請求');
 
     const ai = getGeminiClient();
 
@@ -147,7 +171,9 @@ app.post('/api/diaries/analyze', authenticateUser, async (req, res) => {
     });
 
     const systemPrompt = `
-你是一個專業的心理諮商師與情感分析AI。
+你是一個情緒分析與生活支持的AI助理，不是醫師或心理師。
+請不要做任何醫療或精神疾病的診斷，不要提及疾病名稱，也不要提供用藥建議。
+若內容顯示使用者可能有嚴重的情緒困擾，advice 請溫和地鼓勵尋求專業協助或信任的人。
 
 請詳細分析以下日記內容，並回傳一份符合JSON格式的分析報告。
 
@@ -185,6 +211,13 @@ app.post('/api/diaries/analyze', authenticateUser, async (req, res) => {
 8. advice：
 提供溫馨的心理健康與生活建議，
 限 150 字內。
+
+9. risk_level：
+評估日記中自傷、自殺或強烈絕望的風險，只能是下列四個字串之一：
+"none"（無跡象）、"low"（輕微低落，無傷害自己的想法）、
+"medium"（出現隱含的消極念頭，例如「不想醒來」「撐不下去」「大家沒有我比較好」）、
+"high"（明確表達想傷害自己或結束生命）。
+請同時考慮直接與委婉的說法，不要只看關鍵字。
 
 必須包含：
 
@@ -247,10 +280,17 @@ JSON Schema：
     }
 
     // 危機字詞偵測：獨立於 AI 分析之外，確保即使 AI 誤判也不遺漏
-    const crisisAlert = detectCrisis(content);
+    const keywordHit = detectCrisis(content);
+    let riskLevel = normalizeRiskLevel(analysis.risk_level);
+    if (keywordHit && (riskLevel === 'none' || riskLevel === 'low')) {
+      riskLevel = 'medium';
+    }
+    const crisisAlert =
+      keywordHit || riskLevel === 'medium' || riskLevel === 'high';
 
     res.json({
       ...analysis,
+      risk_level: riskLevel,
       crisis_alert: crisisAlert,
       crisis_resources: crisisAlert ? CRISIS_RESOURCES : null
     });
@@ -262,8 +302,14 @@ JSON Schema：
       error.message
     );
 
+    // AI 失敗時仍以關鍵字做安全防護，讓前端能顯示求助資源
+    const fallbackCrisis = detectCrisis(content);
+
     res.status(500).json({
-      error: error.message
+      error: error.message,
+      ...(fallbackCrisis
+        ? { crisis_alert: true, crisis_resources: CRISIS_RESOURCES }
+        : {})
     });
 
   }
@@ -291,9 +337,7 @@ app.post('/api/diaries', authenticateUser, async (req, res) => {
 
     const userId = req.user.uid;
 
-    console.log(
-      `儲存日記 - UID: ${userId}, 日期: ${date}`
-    );
+    console.log(`儲存日記 - 日期: ${date}`);
 
     const diaryData = {
 
@@ -328,6 +372,9 @@ app.post('/api/diaries', authenticateUser, async (req, res) => {
 
       crisis_alert:
         analysis?.crisis_alert ?? false,
+
+      risk_level:
+        analysis?.risk_level ?? 'none',
 
       raw_ai_response:
         JSON.stringify(analysis ?? {})
@@ -528,7 +575,7 @@ app.post('/api/diaries/report', authenticateUser, async (req, res) => {
     });
 
     const reportPrompt = `
-你是一個專業的心理諮商師。以下是使用者在${period === 'month' ? '過去一個月' : '過去一週'}內，
+你是一個情緒分析與生活支持的AI助理，不是醫師或心理師，請勿做任何醫療或精神疾病的診斷、也不要提供用藥建議。以下是使用者在${period === 'month' ? '過去一個月' : '過去一週'}內，
 每日日記的每日摘要與心理指標（情緒、壓力、焦慮、穩定度，皆為 1-100 分）：
 
 ${diarySummaries}

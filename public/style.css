@@ -1462,3 +1462,24 @@ body.no-scroll {
     grid-template-rows: repeat(7, 10px);
   }
 }
+
+
+/* --- Disclaimer bar --- */
+.disclaimer-bar {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--color-text-muted);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+}
+
+.disclaimer-bar i {
+  flex-shrink: 0;
+  margin-top: 2px;
+}

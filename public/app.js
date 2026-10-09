@@ -608,7 +608,7 @@ function setupFirebaseAuth() {
 
     els.btnAnalyzeSave.disabled = true;
     els.btnAnalyzeSave.innerHTML = '<i class="floating-icon" style="width:16px;height:16px;margin:0;display:inline-block"></i> 正在分析中...';
-    els.saveStatus.textContent = 'AI 正在診斷分析中...';
+    els.saveStatus.textContent = 'AI 正在分析中...';
     els.saveStatus.className = 'editor-status warning';
 
     try {
@@ -621,7 +621,11 @@ function setupFirebaseAuth() {
 
       if (!analyzeRes.ok) {
         const errData = await analyzeRes.json();
-        throw new Error(errData.error || '分析失敗');
+        // 分析失敗但偵測到危機字詞時，結果面板不會顯示，改在提示中附上求助資訊
+        const crisisNote = errData.crisis_alert
+          ? '\n\n如果你現在感到很痛苦，請撥打安心專線 1925（24 小時）或生命線 1995，你並不孤單。'
+          : '';
+        throw new Error((errData.error || '分析失敗') + crisisNote);
       }
 
       const analysisResult = await analyzeRes.json();
@@ -1085,7 +1089,7 @@ function setupFirebaseAuth() {
   // --- MODAL VIEWS ---
   function showDiaryDetails(diary) {
     state.selectedDiary = diary;
-    els.modalTitle.textContent = `${diary.date} 心理量測細節`;
+    els.modalTitle.textContent = `${diary.date} 情緒分析細節`;
     els.modalContent.textContent = diary.content;
     
     els.modalMetricEmotion.textContent = diary.emotion_score;
