@@ -44,6 +44,13 @@ async function saveDiary(diaryData) {
         ? diaryData.negative_emotions
         : [],
 
+    crisis_alert: !!diaryData.crisis_alert,
+
+    advice_completed:
+      existing.exists && existing.data().advice_completed !== undefined
+        ? existing.data().advice_completed
+        : false,
+
     created_at:
       existing.exists
         ? existing.data().created_at
@@ -106,10 +113,56 @@ async function deleteDiary(user_id, date) {
   return { changes: 1 };
 }
 
+// 取得某段日期區間內的日記（用於週報 / 月報 / 情緒關聯分析）
+// startDate / endDate 皆為 'YYYY-MM-DD' 字串，並包含起訖日
+async function getDiariesInRange(user_id, startDate, endDate) {
+  const snapshot = await db
+    .collection(COLLECTION)
+    .where('user_id', '==', user_id)
+    .where('date', '>=', startDate)
+    .where('date', '<=', endDate)
+    .get();
+
+  const diaries = snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }));
+
+  diaries.sort((a, b) => a.date.localeCompare(b.date));
+
+  return diaries;
+}
+
+// 更新「建議是否已採納」狀態，用於個人化建議追蹤
+async function updateAdviceStatus(user_id, date, completed) {
+  const docRef = db.collection(COLLECTION).doc(diaryDocId(user_id, date));
+  const snap = await docRef.get();
+
+  if (!snap.exists) {
+    return null;
+  }
+
+  const record = {
+    advice_completed: !!completed,
+    advice_completed_at: completed ? new Date().toISOString() : null,
+    updated_at: new Date().toISOString()
+  };
+
+  await docRef.set(record, { merge: true });
+
+  return {
+    id: docRef.id,
+    ...snap.data(),
+    ...record
+  };
+}
+
 module.exports = {
   init,
   saveDiary,
   getDiaryByDate,
   getAllDiaries,
+  getDiariesInRange,
+  updateAdviceStatus,
   deleteDiary
 };

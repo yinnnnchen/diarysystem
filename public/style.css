@@ -1234,3 +1234,231 @@ body.no-scroll {
     font-size: 14px;
   }
 }
+/* ========================================
+   新增功能樣式：連續紀錄徽章、情緒日曆熱圖、
+   危機提示橫幅、語音輸入、匯出按鈕、AI 報告頁
+   ======================================== */
+
+/* --- Streak badge --- */
+.streak-badge-row {
+  margin-bottom: 16px;
+}
+
+.streak-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: var(--overlay-3);
+  border: 1px solid var(--border-color);
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.streak-badge.active {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.4);
+  color: #f59e0b;
+}
+
+/* --- Calendar heatmap --- */
+.heatmap-card {
+  grid-column: span 2;
+}
+
+.heatmap-grid {
+  display: grid;
+  grid-template-rows: repeat(7, 1fr);
+  grid-auto-flow: column;
+  gap: 3px;
+  overflow-x: auto;
+  padding: 4px 0;
+}
+
+.heatmap-cell {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: var(--overlay-4);
+}
+
+.heatmap-cell.future {
+  background: transparent;
+}
+
+.heatmap-cell.level-0 { background: var(--overlay-5); }
+.heatmap-cell.level-1 { background: rgba(244, 63, 94, 0.55); }
+.heatmap-cell.level-2 { background: rgba(245, 158, 11, 0.55); }
+.heatmap-cell.level-3 { background: rgba(16, 185, 129, 0.5); }
+.heatmap-cell.level-4 { background: rgba(16, 185, 129, 0.95); }
+
+.heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.heatmap-legend .heatmap-cell {
+  width: 10px;
+  height: 10px;
+}
+
+/* --- Crisis alert banner --- */
+.crisis-banner {
+  background: rgba(244, 63, 94, 0.1);
+  border: 1px solid rgba(244, 63, 94, 0.35);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+
+.crisis-banner-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-stress);
+  margin-bottom: 8px;
+}
+
+.crisis-banner-body p {
+  font-size: 13px;
+  color: var(--color-text-main);
+  margin-bottom: 8px;
+  line-height: 1.6;
+}
+
+.crisis-hotline-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.crisis-hotline-list li {
+  font-size: 13px;
+}
+
+.crisis-hotline-list a {
+  color: var(--color-stress);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.crisis-tag {
+  color: var(--color-stress);
+  font-weight: 600;
+}
+
+/* --- Advice completion checkbox --- */
+.advice-complete-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.advice-complete-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+/* --- Voice input button --- */
+.textarea-wrapper {
+  position: relative;
+  flex: 1;
+  display: flex;
+}
+
+.btn-voice-input {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid var(--border-color);
+  background: var(--overlay-4);
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-speed);
+}
+
+.btn-voice-input:hover {
+  background: var(--overlay-6);
+  color: var(--color-text-main);
+}
+
+.btn-voice-input.recording {
+  background: var(--color-stress);
+  border-color: var(--color-stress);
+  color: white;
+  animation: pulse-record 1.4s infinite;
+}
+
+@keyframes pulse-record {
+  0% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.5); }
+  70% { box-shadow: 0 0 0 10px rgba(244, 63, 94, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0); }
+}
+
+/* --- Logs export buttons --- */
+.log-export-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.log-export-actions .btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  padding: 8px 12px;
+}
+
+/* --- AI Report tab --- */
+.report-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.report-panel {
+  min-height: 300px;
+}
+
+.report-content .badge {
+  margin-left: 8px;
+}
+
+/* --- Responsive adjustments --- */
+@media (max-width: 900px) {
+  .heatmap-card {
+    grid-column: span 1;
+  }
+}
+
+@media (max-width: 480px) {
+  .report-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .heatmap-grid {
+    grid-template-rows: repeat(7, 10px);
+  }
+}

@@ -69,16 +69,41 @@ async function authenticateUser(req, res, next) {
   }
 }
 
-function getGeminiClient(clientKey) {
-  const apiKey = clientKey || process.env.GEMINI_API_KEY;
+// 安全性設計：統一由後端管理 Gemini API 金鑰，一律讀取伺服器端環境變數，
+// 不再接受前端傳入的自訂金鑰，避免金鑰經由瀏覽器/網路外洩。
+function getGeminiClient() {
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     throw new Error(
-      'Gemini API Key is missing. Please set it in backend .env.'
+      'Gemini API Key is missing. Please configure GEMINI_API_KEY in backend .env.'
     );
   }
   return new GoogleGenerativeAI(apiKey);
 }
 
+// ========================================
+// 危機字詞偵測（本地關鍵字比對，不依賴 AI 回覆，確保即時且穩定）
+// 命中時回傳求助資源，供前端顯示醒目提示，屬於使用者安全防護機制
+// ========================================
+const CRISIS_KEYWORDS = [
+  '自殺', '想死', '不想活', '活不下去', '結束生命', '自我了斷',
+  '自殘', '割腕', '傷害自己', '消失就好', '沒有存在的意義',
+  '想離開這個世界', '解脫了'
+];
+
+function detectCrisis(content) {
+  if (!content) return false;
+  return CRISIS_KEYWORDS.some(keyword => content.includes(keyword));
+}
+
+const CRISIS_RESOURCES = {
+  message: '我們注意到這篇日記的內容可能反映出強烈的情緒困擾。你並不孤單，專業的協助隨時都在。',
+  hotlines: [
+    { name: '衛福部安心專線', phone: '1925', available: '24 小時' },
+    { name: '生命線協談專線', phone: '1995', available: '24 小時' },
+    { name: '張老師專線', phone: '1980', available: '9:00-21:00' }
+  ]
+};
 
 app.get('/api/status', (req, res) => {
   const hasEnvKey = !!process.env.GEMINI_API_KEY;
@@ -87,13 +112,13 @@ app.get('/api/status', (req, res) => {
     hasEnvKey,
     message: hasEnvKey
       ? 'System running with backend Gemini API key configured.'
-      : 'System running, but Gemini API key needs to be configured.'
+      : 'System running, but the administrator needs to configure GEMINI_API_KEY on the backend.'
   });
 });
 
 app.post('/api/diaries/analyze', authenticateUser, async (req, res) => {
 
-  const { content, key } = req.body;
+  const { content } = req.body;
 
   if (!content || content.trim() === '') {
 
@@ -109,7 +134,7 @@ app.post('/api/diaries/analyze', authenticateUser, async (req, res) => {
       `AI 分析日記 - UID: ${req.user.uid}`
     );
 
-    const ai = getGeminiClient(key);
+    const ai = getGeminiClient();
 
     const model = ai.getGenerativeModel({
 
@@ -221,7 +246,14 @@ JSON Schema：
 
     }
 
-    res.json(analysis);
+    // 危機字詞偵測：獨立於 AI 分析之外，確保即使 AI 誤判也不遺漏
+    const crisisAlert = detectCrisis(content);
+
+    res.json({
+      ...analysis,
+      crisis_alert: crisisAlert,
+      crisis_resources: crisisAlert ? CRISIS_RESOURCES : null
+    });
 
   } catch (error) {
 
@@ -293,6 +325,9 @@ app.post('/api/diaries', authenticateUser, async (req, res) => {
 
       advice:
         analysis?.advice ?? '',
+
+      crisis_alert:
+        analysis?.crisis_alert ?? false,
 
       raw_ai_response:
         JSON.stringify(analysis ?? {})
@@ -402,6 +437,167 @@ app.delete('/api/diaries/:date', authenticateUser, async (req, res) => {
 
 });
 
+// ========================================
+// 個人化建議追蹤：標記某篇日記的 AI 建議是否已採納/完成
+// ========================================
+app.patch('/api/diaries/:date/advice-status', authenticateUser, async (req, res) => {
+
+  try {
+
+    const { completed } = req.body;
+
+    const updated = await db.updateAdviceStatus(
+      req.user.uid,
+      req.params.date,
+      completed
+    );
+
+    if (!updated) {
+      return res.status(404).json({
+        error: 'Diary entry not found for this date.'
+      });
+    }
+
+    res.json(updated);
+
+  } catch (error) {
+
+    res.status(500).json({
+      error: error.message
+    });
+
+  }
+
+});
+
+
+// ========================================
+// AI 週報 / 月報：彙整一段期間的日記，交由 Gemini 產生整體性的心理報告
+// ========================================
+app.post('/api/diaries/report', authenticateUser, async (req, res) => {
+
+  try {
+
+    const period = req.body.period === 'month' ? 'month' : 'week';
+
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(
+      startDate.getDate() - (period === 'month' ? 29 : 6)
+    );
+
+    const toDateStr = (d) => d.toISOString().slice(0, 10);
+
+    const diaries = await db.getDiariesInRange(
+      req.user.uid,
+      toDateStr(startDate),
+      toDateStr(endDate)
+    );
+
+    if (diaries.length === 0) {
+      return res.json({
+        period,
+        totalCount: 0,
+        message: '這段期間內尚無日記紀錄，寫下幾篇日記後即可產生報告。'
+      });
+    }
+
+    // 彙整期間內的統計數據（用程式計算，不交給 AI 估算，確保數字準確）
+    const count = diaries.length;
+    const avg = (key) =>
+      Math.round(
+        diaries.reduce((sum, d) => sum + (Number(d[key]) || 0), 0) / count
+      );
+
+    const periodStats = {
+      emotion: avg('emotion_score'),
+      stress: avg('stress_index'),
+      anxiety: avg('anxiety_index'),
+      stability: avg('stability_index')
+    };
+
+    // 只把摘要與指標交給 AI（不傳整篇原文），降低 Token 成本並保護隱私
+    const diarySummaries = diaries.map(d =>
+      `${d.date}｜情緒:${d.emotion_score} 壓力:${d.stress_index} 焦慮:${d.anxiety_index} 穩定:${d.stability_index}｜摘要:${d.summary || '(無摘要)'}`
+    ).join('\n');
+
+    const ai = getGeminiClient();
+    const model = ai.getGenerativeModel({
+      model: 'gemini-2.5-flash',
+      generationConfig: { responseMimeType: 'application/json' }
+    });
+
+    const reportPrompt = `
+你是一個專業的心理諮商師。以下是使用者在${period === 'month' ? '過去一個月' : '過去一週'}內，
+每日日記的每日摘要與心理指標（情緒、壓力、焦慮、穩定度，皆為 1-100 分）：
+
+${diarySummaries}
+
+請根據這些每日紀錄，統整成一份整體性的${period === 'month' ? '月報' : '週報'}，並以 JSON 格式回傳，內容包含：
+
+{
+  "overview": "以溫暖語氣，200字內總結這段期間整體的心理狀態變化",
+  "trend_insight": "觀察到的情緒/壓力趨勢變化（例如：週初到週末的起伏、是否逐漸好轉或惡化），100字內",
+  "top_stressors": ["歸納出的主要壓力來源，最多5項，簡短詞語"],
+  "positive_highlights": ["這段期間值得肯定或正向的地方，最多5項，簡短詞語"],
+  "recommendation": "針對整體狀態的具體生活與心理健康建議，150字內"
+}
+
+請務必只回傳標準 JSON，不要加入 Markdown 或其他文字。
+`;
+
+    const result = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: reportPrompt }] }]
+    });
+
+    const text = result.response.text();
+    let report;
+
+    try {
+      report = JSON.parse(text);
+    } catch (error) {
+      console.error('報告 JSON 解析失敗:', text);
+      throw new Error('AI 報告格式錯誤，請重新產生。');
+    }
+
+    // 星期別情緒關聯分析（程式端計算，非 AI 估算）
+    const weekdayLabels = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
+    const weekdayBuckets = Array.from({ length: 7 }, () => []);
+    diaries.forEach(d => {
+      const day = new Date(d.date + 'T00:00:00').getDay();
+      weekdayBuckets[day].push(Number(d.emotion_score) || 0);
+    });
+    const weekdayAverages = weekdayBuckets.map((bucket, i) => ({
+      label: weekdayLabels[i],
+      average: bucket.length
+        ? Math.round(bucket.reduce((a, b) => a + b, 0) / bucket.length)
+        : null,
+      count: bucket.length
+    }));
+
+    res.json({
+      period,
+      totalCount: count,
+      startDate: toDateStr(startDate),
+      endDate: toDateStr(endDate),
+      periodStats,
+      weekdayAverages,
+      ...report
+    });
+
+  } catch (error) {
+
+    console.error('產生報告失敗:', error.message);
+
+    res.status(500).json({
+      error: error.message
+    });
+
+  }
+
+});
+
+
 app.get('/api/stats', authenticateUser, async (req, res) => {
 
   try {
@@ -428,7 +624,9 @@ app.get('/api/stats', authenticateUser, async (req, res) => {
         emotionsDistribution: {
           positive: {},
           negative: {}
-        }
+        },
+
+        streak: 0
 
       });
 
@@ -475,10 +673,27 @@ app.get('/api/stats', authenticateUser, async (req, res) => {
 
     const count = diaries.length;
 
+    // 連續紀錄天數（streak）：從今天（或最近一篇日記日）往回算，
+    // 只要中間沒有斷過一天就持續累加
+    const dateSet = new Set(diaries.map(d => d.date));
+    const toDateStr = (d) => d.toISOString().slice(0, 10);
+    let streak = 0;
+    let cursor = new Date();
+    // 若今天還沒寫，從昨天開始算（不因為「今天還沒寫」就把 streak 歸零）
+    if (!dateSet.has(toDateStr(cursor))) {
+      cursor.setDate(cursor.getDate() - 1);
+    }
+    while (dateSet.has(toDateStr(cursor))) {
+      streak += 1;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+
 
     res.json({
 
       totalCount: count,
+
+      streak,
 
       averages: {
 

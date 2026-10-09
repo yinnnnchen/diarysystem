@@ -1,0 +1,26 @@
+{
+  "name": "心靈微光 - AI 心理日記量測系統",
+  "short_name": "心靈微光",
+  "description": "AI 驅動的心理量測日記系統，記錄每日心情並產生情緒、壓力、焦慮與穩定度分析。",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0b0f19",
+  "theme_color": "#0b0f19",
+  "orientation": "portrait-primary",
+  "lang": "zh-TW",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

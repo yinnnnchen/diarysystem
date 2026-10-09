@@ -18,6 +18,10 @@
     })();
   </script>
   <meta name="theme-color" content="#0b0f19">
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -55,6 +59,10 @@
         <a href="#logs" class="nav-item" data-tab="logs">
           <i data-lucide="book-open"></i>
           <span>日記時光機</span>
+        </a>
+        <a href="#report" class="nav-item" data-tab="report">
+          <i data-lucide="file-text"></i>
+          <span>AI 心理報告</span>
         </a>
         <a href="#settings" class="nav-item" data-tab="settings">
           <i data-lucide="settings"></i>
@@ -108,7 +116,33 @@
 
       <!-- TAB 1: Dashboard -->
       <section id="tab-dashboard" class="tab-pane active">
-        <!-- Overview Stats Grid -->
+        <div class="streak-badge-row">
+          <span class="streak-badge" id="streak-badge">
+            <i data-lucide="flame" style="width:16px;height:16px"></i> 尚未開始連續紀錄
+          </span>
+        </div>
+
+           <div class="glass-card heatmap-card">
+            <div class="card-header">
+              <h3><i data-lucide="calendar-days"></i> 情緒日曆熱圖</h3>
+              <div class="chart-actions">
+                <span class="badge">最近 12 週</span>
+              </div>
+            </div>
+            <div id="calendar-heatmap"></div>
+            <div class="heatmap-legend">
+              <span>低</span>
+              <span class="heatmap-cell level-1"></span>
+              <span class="heatmap-cell level-2"></span>
+              <span class="heatmap-cell level-3"></span>
+              <span class="heatmap-cell level-4"></span>
+              <span>高</span>
+              <span class="heatmap-cell level-0" style="margin-left:12px"></span>
+              <span>無紀錄</span>
+            </div>
+          </div>
+        
+          <!-- Overview Stats Grid -->
         <div class="stats-grid">
           <div class="stat-card emotion">
             <div class="stat-icon"><i data-lucide="smile"></i></div>
@@ -194,6 +228,9 @@
               <p class="text-muted">尚無足夠數據</p>
             </div>
           </div>
+
+          <!-- Calendar Heatmap -->
+          
         </div>
       </section>
 
@@ -210,7 +247,12 @@
               <div class="editor-status" id="save-status">未儲存</div>
             </div>
             
-            <textarea id="diary-content" class="diary-textarea" placeholder="今天發生了什麼事？你的心情如何？寫下任何你想表達的想法、感受或壓力..."></textarea>
+            <div class="textarea-wrapper">
+              <textarea id="diary-content" class="diary-textarea" placeholder="今天發生了什麼事？你的心情如何？寫下任何你想表達的想法、感受或壓力..."></textarea>
+              <button class="btn-voice-input" id="btn-voice-input" type="button" title="點擊開始語音輸入">
+                <i data-lucide="mic"></i>
+              </button>
+            </div>
             
             <div class="editor-footer">
               <div class="character-count"><span id="char-count">0</span> 字</div>
@@ -232,6 +274,15 @@
               <div class="analysis-section-title">
                 <h3><i data-lucide="sparkles"></i> AI 心理分析報告</h3>
                 <span class="badge success" id="result-status">分析完成</span>
+              </div>
+
+              <!-- Crisis Alert Banner -->
+              <div class="crisis-banner hidden" id="crisis-banner">
+                <div class="crisis-banner-header">
+                  <i data-lucide="heart-handshake"></i>
+                  <strong>我們在意你的狀態</strong>
+                </div>
+                <div id="crisis-banner-body"></div>
               </div>
 
               <!-- Indicators breakdown -->
@@ -287,6 +338,10 @@
               <div class="report-box advice-box">
                 <h4><i data-lucide="lightbulb"></i> 溫馨建議與關懷</h4>
                 <p id="result-advice">AI 心理健康建議...</p>
+                <label class="advice-complete-row hidden" id="advice-complete-row">
+                  <input type="checkbox" id="advice-complete-checkbox">
+                  <span>我已嘗試今天的建議</span>
+                </label>
               </div>
             </div>
           </div>
@@ -302,11 +357,29 @@
               <input type="text" id="log-search-input" placeholder="搜尋日記內容或情感特徵...">
             </div>
             <div class="sort-box">
+              <label for="log-emotion-filter">情緒範圍：</label>
+              <select id="log-emotion-filter" class="form-control-select">
+                <option value="all">全部</option>
+                <option value="low">低落 (&lt; 40)</option>
+                <option value="mid">普通 (40-70)</option>
+                <option value="high">良好 (&gt; 70)</option>
+                <option value="crisis">危機提示</option>
+              </select>
+            </div>
+            <div class="sort-box">
               <label for="log-sort-select">排序：</label>
               <select id="log-sort-select" class="form-control-select">
                 <option value="desc">日期由新到舊</option>
                 <option value="asc">日期由舊到新</option>
               </select>
+            </div>
+            <div class="log-export-actions">
+              <button class="btn btn-secondary" id="btn-export-json" title="匯出 JSON">
+                <i data-lucide="file-json"></i> JSON
+              </button>
+              <button class="btn btn-secondary" id="btn-export-csv" title="匯出 CSV">
+                <i data-lucide="file-spreadsheet"></i> CSV
+              </button>
             </div>
           </div>
 
@@ -318,23 +391,96 @@
         </div>
       </section>
 
+      <!-- TAB: AI Report (Week/Month) -->
+      <section id="tab-report" class="tab-pane">
+        <div class="report-controls glass-card">
+          <div class="input-group-inline">
+            <label for="report-period-select">報告期間：</label>
+            <select id="report-period-select" class="form-control-select">
+              <option value="week">最近一週</option>
+              <option value="month">最近一個月</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" id="btn-generate-report">
+            <i data-lucide="sparkles"></i> 產生 AI 報告
+          </button>
+          <button class="btn btn-secondary" id="btn-export-report-pdf">
+            <i data-lucide="printer"></i> 匯出 / 列印 PDF
+          </button>
+        </div>
+
+        <div class="glass-card report-panel">
+          <div class="analysis-panel-placeholder" id="report-placeholder">
+            <i data-lucide="file-text" class="floating-icon"></i>
+            <h3>尚未產生報告</h3>
+            <p>選擇報告期間並點擊「產生 AI 報告」，系統將彙整這段期間的日記，產生整體性的心理狀態報告。</p>
+          </div>
+
+          <div class="report-content hidden" id="report-content">
+            <div class="analysis-section-title">
+              <h3><i data-lucide="sparkles"></i> AI 心理報告</h3>
+              <span class="badge" id="report-meta-range">--</span>
+              <span class="badge success" id="report-meta-count">--</span>
+            </div>
+
+            <div class="report-box summary-box">
+              <h4><i data-lucide="bookmark"></i> 整體總結</h4>
+              <p id="report-overview">--</p>
+            </div>
+
+            <div class="report-box">
+              <h4><i data-lucide="trending-up"></i> 趨勢觀察</h4>
+              <p id="report-trend-insight">--</p>
+            </div>
+
+            <div class="glass-card chart-card-small" style="margin: 16px 0; padding: 16px;">
+              <div class="card-header">
+                <h3><i data-lucide="calendar"></i> 星期別情緒關聯</h3>
+              </div>
+              <div class="chart-container" style="height: 220px;">
+                <canvas id="weekdayChart"></canvas>
+              </div>
+            </div>
+
+            <div class="emotion-tags-container">
+              <div class="tags-group">
+                <span class="tags-label">主要壓力來源：</span>
+                <div class="tags-list" id="report-stressors"></div>
+              </div>
+              <div class="tags-group">
+                <span class="tags-label">正向亮點：</span>
+                <div class="tags-list" id="report-highlights"></div>
+              </div>
+            </div>
+
+            <div class="report-box advice-box">
+              <h4><i data-lucide="lightbulb"></i> 心理健康建議</h4>
+              <p id="report-recommendation">--</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- TAB 4: Settings -->
       <section id="tab-settings" class="tab-pane">
         <div class="settings-layout">
           <div class="glass-card settings-card">
-            <h3><i data-lucide="settings"></i> 系統配置</h3>
-            <p class="text-muted">設定您的 AI 密鑰或匯入測試數據以評估系統功能。</p>
-
+            <h3><i data-lucide="shield-check"></i> AI 服務金鑰</h3>
+            <p class="text-muted">為保護您的帳號安全，Gemini API 金鑰已統一由伺服器端管理，不會經過您的瀏覽器傳輸或儲存。</p>
             <hr class="divider">
-
-            <div class="form-group">
-              <label for="settings-api-key">Gemini API Key (自訂金鑰)</label>
-              <input type="password" id="settings-api-key" class="form-control" placeholder="輸入您的 AI API 金鑰 (例如 AIzaSy...)">
-              <p class="form-help">如果後端 <code>.env</code> 檔案中已設定 <code>GEMINI_API_KEY</code>，則此處可留空。自訂金鑰會儲存在本機瀏覽器中。</p>
+            <div class="api-status-badge" id="settings-api-status-hint">
+              <span class="status-dot success"></span>
+              <span class="status-text">系統使用後端環境變數中設定的金鑰，若您是管理員，請於伺服器 <code>.env</code> 檔案中設定 <code>GEMINI_API_KEY</code>。</span>
             </div>
+          </div>
 
+          <div class="glass-card settings-card">
+            <h3><i data-lucide="bell"></i> 每日撰寫提醒</h3>
+            <p class="text-muted">開啟瀏覽器通知，若當天尚未撰寫日記，系統會在您造訪網站時提醒您。</p>
+            <hr class="divider">
             <div class="form-actions">
-              <button class="btn btn-primary" id="btn-save-settings">儲存設定</button>
+              <button class="btn btn-primary" id="btn-enable-reminder">開啟每日提醒</button>
+              <span class="status-text text-muted" id="reminder-status">提醒尚未開啟</span>
             </div>
           </div>
 
@@ -345,7 +491,6 @@
             <button class="btn btn-danger" id="btn-clear-db">
                 <i data-lucide="trash-2"></i> 清空資料庫所有日記
             </button>
-            </div>
           </div>
         </div>
       </section>

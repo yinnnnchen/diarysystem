@@ -33,12 +33,14 @@ document.addEventListener('DOMContentLoaded', () => {
     diaries: [],
     stats: null,
     apiStatus: { hasEnvKey: false },
-    customApiKey: localStorage.getItem('gemini_api_key') || '',
     selectedDiary: null,
     currentUser: null,
+    currentReport: null,
+    isRecording: false,
     charts: {
       trend: null,
-      radar: null
+      radar: null,
+      weekday: null
     }
   };
 
@@ -98,11 +100,37 @@ document.addEventListener('DOMContentLoaded', () => {
     logsTimelineList: document.getElementById('logs-timeline-list'),
     logSearchInput: document.getElementById('log-search-input'),
     logSortSelect: document.getElementById('log-sort-select'),
-    
+    logEmotionFilter: document.getElementById('log-emotion-filter'),
+    btnExportJson: document.getElementById('btn-export-json'),
+    btnExportCsv: document.getElementById('btn-export-csv'),
+
     // Settings
-    settingsApiKey: document.getElementById('settings-api-key'),
-    btnSaveSettings: document.getElementById('btn-save-settings'),
     btnClearDb: document.getElementById('btn-clear-db'),
+    btnEnableReminder: document.getElementById('btn-enable-reminder'),
+    reminderStatus: document.getElementById('reminder-status'),
+
+    // Write - voice & advice tracking
+    btnVoiceInput: document.getElementById('btn-voice-input'),
+    adviceCompleteRow: document.getElementById('advice-complete-row'),
+    adviceCompleteCheckbox: document.getElementById('advice-complete-checkbox'),
+    crisisBanner: document.getElementById('crisis-banner'),
+    crisisBannerBody: document.getElementById('crisis-banner-body'),
+
+    // Report tab
+    reportPeriodSelect: document.getElementById('report-period-select'),
+    btnGenerateReport: document.getElementById('btn-generate-report'),
+    reportPlaceholder: document.getElementById('report-placeholder'),
+    reportContent: document.getElementById('report-content'),
+    reportOverview: document.getElementById('report-overview'),
+    reportTrendInsight: document.getElementById('report-trend-insight'),
+    reportStressors: document.getElementById('report-stressors'),
+    reportHighlights: document.getElementById('report-highlights'),
+    reportRecommendation: document.getElementById('report-recommendation'),
+    reportMetaCount: document.getElementById('report-meta-count'),
+    reportMetaRange: document.getElementById('report-meta-range'),
+    btnExportReportPdf: document.getElementById('btn-export-report-pdf'),
+    streakBadge: document.getElementById('streak-badge'),
+    calendarHeatmap: document.getElementById('calendar-heatmap'),
     
     // Modal
     diaryDetailModal: document.getElementById('diary-detail-modal'),
@@ -132,16 +160,26 @@ document.addEventListener('DOMContentLoaded', () => {
       weekday: 'long'
     });
 
-  if (state.customApiKey) {
-    els.settingsApiKey.value =
-      state.customApiKey;
-  }
   setupEventListeners();
   setupGoogleLogin();
   setupFirebaseAuth();
   setupThemeToggle();
   setupMobileMenu();
+  setupVoiceInput();
+  setupReminder();
   checkApiStatus();
+  registerServiceWorker();
+}
+
+// --- PWA: SERVICE WORKER ---
+function registerServiceWorker() {
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').catch(err => {
+        console.warn('Service worker 註冊失敗（不影響主要功能）:', err);
+      });
+    });
+  }
 }
 
 function setupThemeToggle() {
@@ -370,15 +408,17 @@ function setupFirebaseAuth() {
     // Save & Analyze Diary
     els.btnAnalyzeSave?.addEventListener('click', handleAnalyzeAndSave);
 
-    // Save Settings
-    els.btnSaveSettings?.addEventListener('click', saveSettings);
-
     // Clear Database
     els.btnClearDb?.addEventListener('click', clearDatabase);
 
     // Logs Filtering & Sorting
     els.logSearchInput?.addEventListener('input', renderLogs);
     els.logSortSelect?.addEventListener('change', renderLogs);
+    els.logEmotionFilter?.addEventListener('change', renderLogs);
+
+    // Logs Export
+    els.btnExportJson?.addEventListener('click', () => exportDiaries('json'));
+    els.btnExportCsv?.addEventListener('click', () => exportDiaries('csv'));
 
     // Close Modal
     els.btnCloseModal?.addEventListener('click', closeModal);
@@ -388,6 +428,13 @@ function setupFirebaseAuth() {
 
     // Date change loads existing diary if any
     els.diaryDate?.addEventListener('change', loadDiaryForSelectedDate);
+
+    // Advice completion tracking
+    els.adviceCompleteCheckbox?.addEventListener('change', handleAdviceToggle);
+
+    // AI Report generation
+    els.btnGenerateReport?.addEventListener('click', handleGenerateReport);
+    els.btnExportReportPdf?.addEventListener('click', exportReportAsPdf);
   }
 
   // --- TAB NAVIGATION ---
@@ -417,7 +464,8 @@ function setupFirebaseAuth() {
       dashboard: { title: '身心儀表板', sub: '追蹤您的日常情緒、壓力和焦慮趨勢' },
       write: { title: '撰寫今日日記', sub: '寫下生活，讓 AI 傾聽並分析您的情感特徵' },
       logs: { title: '日記時光機', sub: '翻閱過往的心情隨筆與身心變化軌跡' },
-      settings: { title: '系統設定', sub: '配置您的 API 密鑰與評估數據' }
+      report: { title: 'AI 心理報告', sub: '彙整一段期間的日記，看見整體的心理狀態變化' },
+      settings: { title: '系統設定', sub: '管理您的日記資料與通知設定' }
     };
 
     if (titles[tabId]) {
@@ -451,12 +499,12 @@ function setupFirebaseAuth() {
     const dot = indicator.querySelector('.status-dot');
     const text = indicator.querySelector('.status-text');
 
-    if (state.customApiKey || state.apiStatus.hasEnvKey) {
+    if (state.apiStatus.hasEnvKey) {
       dot.className = 'status-dot success';
-      text.textContent = 'Gemini API 已就緒';
+      text.textContent = 'Gemini API 已就緒（後端金鑰）';
     } else {
       dot.className = 'status-dot warning';
-      text.textContent = '請至設定輸入 API 金鑰';
+      text.textContent = '伺服器尚未設定 API 金鑰，請聯絡管理員';
     }
   }
 
@@ -526,7 +574,10 @@ function setupFirebaseAuth() {
             positive_emotions: diary.positive_emotions || parsedAnalysis.positive_emotions,
             negative_emotions: diary.negative_emotions || parsedAnalysis.negative_emotions,
             summary: diary.summary,
-            advice: diary.advice
+            advice: diary.advice,
+            advice_completed: diary.advice_completed,
+            crisis_alert: diary.crisis_alert,
+            crisis_resources: null
           });
         } else {
           hideAnalysisResults();
@@ -565,10 +616,7 @@ function setupFirebaseAuth() {
       const analyzeRes = await fetch('/api/diaries/analyze', {
         method: 'POST',
         headers: await getAuthHeaders(),
-        body: JSON.stringify({
-          content,
-          key: state.customApiKey
-        })
+        body: JSON.stringify({ content })
       });
 
       if (!analyzeRes.ok) {
@@ -633,11 +681,63 @@ function setupFirebaseAuth() {
     // Summary & Advice
     els.resultSummary.textContent = result.summary || '未提供摘要。';
     els.resultAdvice.textContent = result.advice || '未提供建議。';
+
+    // Advice completion tracking
+    if (els.adviceCompleteRow) {
+      els.adviceCompleteRow.classList.remove('hidden');
+      els.adviceCompleteCheckbox.checked = !!result.advice_completed;
+    }
+
+    // 危機字詞偵測提示
+    showCrisisBanner(result.crisis_alert, result.crisis_resources);
   }
 
   function hideAnalysisResults() {
     els.analysisPlaceholder.classList.remove('hidden');
     els.analysisResultView.classList.add('hidden');
+    els.adviceCompleteRow?.classList.add('hidden');
+    showCrisisBanner(false);
+  }
+
+  function showCrisisBanner(active, resources) {
+    if (!els.crisisBanner) return;
+    if (!active) {
+      els.crisisBanner.classList.add('hidden');
+      return;
+    }
+    const res = resources || {
+      message: '我們注意到這篇日記的內容可能反映出強烈的情緒困擾。你並不孤單，專業的協助隨時都在。',
+      hotlines: [
+        { name: '衛福部安心專線', phone: '1925', available: '24 小時' },
+        { name: '生命線協談專線', phone: '1995', available: '24 小時' },
+        { name: '張老師專線', phone: '1980', available: '9:00-21:00' }
+      ]
+    };
+    els.crisisBannerBody.innerHTML = `
+      <p>${res.message}</p>
+      <ul class="crisis-hotline-list">
+        ${res.hotlines.map(h => `<li><strong>${h.name}</strong>：<a href="tel:${h.phone}">${h.phone}</a>（${h.available}）</li>`).join('')}
+      </ul>
+    `;
+    els.crisisBanner.classList.remove('hidden');
+  }
+
+  async function handleAdviceToggle() {
+    const date = els.diaryDate.value;
+    if (!date) return;
+    try {
+      const res = await fetch(`/api/diaries/${date}/advice-status`, {
+        method: 'PATCH',
+        headers: await getAuthHeaders(),
+        body: JSON.stringify({ completed: els.adviceCompleteCheckbox.checked })
+      });
+      if (!res.ok) throw new Error('更新失敗');
+    } catch (e) {
+      console.error('更新建議完成狀態失敗:', e);
+      // Revert checkbox on failure
+      els.adviceCompleteCheckbox.checked = !els.adviceCompleteCheckbox.checked;
+      alert('無法更新建議完成狀態，請稍後再試。');
+    }
   }
 
   function renderTags(container, list, type) {
@@ -677,6 +777,73 @@ function setupFirebaseAuth() {
     // Build Word Clouds
     buildWordCloud(els.posKeywords, emotionsDistribution.positive, 'pos');
     buildWordCloud(els.negKeywords, emotionsDistribution.negative, 'neg');
+
+    // 連續紀錄天數
+    renderStreakBadge(state.stats.streak || 0);
+
+    // 情緒日曆熱圖
+    renderCalendarHeatmap(state.diaries);
+  }
+
+  // --- STREAK BADGE ---
+  function renderStreakBadge(streak) {
+    if (!els.streakBadge) return;
+    if (streak > 0) {
+      els.streakBadge.innerHTML = `<i data-lucide="flame" style="width:16px;height:16px"></i> 連續紀錄 ${streak} 天`;
+      els.streakBadge.classList.add('active');
+    } else {
+      els.streakBadge.innerHTML = `<i data-lucide="flame" style="width:16px;height:16px"></i> 尚未開始連續紀錄`;
+      els.streakBadge.classList.remove('active');
+    }
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  }
+
+  // --- CALENDAR HEATMAP (最近 12 週，類似 GitHub 貢獻圖) ---
+  function renderCalendarHeatmap(diaries) {
+    if (!els.calendarHeatmap) return;
+
+    const byDate = {};
+    (diaries || []).forEach(d => { byDate[d.date] = d; });
+
+    const totalDays = 84; // 12 週
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // 對齊到最近一個週日，讓格子排成完整的週欄位
+    const end = new Date(today);
+    end.setDate(end.getDate() + (6 - end.getDay()));
+    const start = new Date(end);
+    start.setDate(start.getDate() - totalDays + 1);
+
+    const cells = [];
+    const cursor = new Date(start);
+    while (cursor <= end) {
+      const dateStr = cursor.toISOString().slice(0, 10);
+      const entry = byDate[dateStr];
+      const isFuture = cursor > today;
+      cells.push({ date: dateStr, score: entry ? entry.emotion_score : null, isFuture });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    function levelFor(score) {
+      if (score === null || score === undefined) return 0;
+      if (score < 30) return 1;
+      if (score < 50) return 2;
+      if (score < 70) return 3;
+      return 4;
+    }
+
+    let html = '<div class="heatmap-grid">';
+    cells.forEach(c => {
+      const level = c.isFuture ? -1 : levelFor(c.score);
+      const title = c.isFuture
+        ? ''
+        : (c.score !== null ? `${c.date}｜情緒分數 ${c.score}` : `${c.date}｜無紀錄`);
+      html += `<div class="heatmap-cell ${c.isFuture ? 'future' : `level-${level}`}" title="${title}"></div>`;
+    });
+    html += '</div>';
+
+    els.calendarHeatmap.innerHTML = html;
   }
 
   function buildWordCloud(container, distribution, type) {
@@ -811,12 +978,22 @@ function setupFirebaseAuth() {
     const search = els.logSearchInput.value.toLowerCase();
     const sort = els.logSortSelect.value;
 
+    const emotionRange = els.logEmotionFilter ? els.logEmotionFilter.value : 'all';
+
     let filtered = state.diaries.filter(d => {
       const matchText = d.content.toLowerCase().includes(search) || 
                         d.summary.toLowerCase().includes(search);
       const matchTags = d.positive_emotions.some(t => t.toLowerCase().includes(search)) ||
                         d.negative_emotions.some(t => t.toLowerCase().includes(search));
-      return matchText || matchTags;
+      const matchSearch = matchText || matchTags;
+
+      let matchEmotion = true;
+      if (emotionRange === 'low') matchEmotion = d.emotion_score < 40;
+      else if (emotionRange === 'mid') matchEmotion = d.emotion_score >= 40 && d.emotion_score <= 70;
+      else if (emotionRange === 'high') matchEmotion = d.emotion_score > 70;
+      else if (emotionRange === 'crisis') matchEmotion = !!d.crisis_alert;
+
+      return matchSearch && matchEmotion;
     });
 
     filtered.sort((a, b) => {
@@ -854,6 +1031,8 @@ function setupFirebaseAuth() {
         <span class="text-emotion">情緒: ${d.emotion_score}</span>
         <span class="text-stress">壓力: ${d.stress_index}</span>
         <span class="text-anxiety">焦慮: ${d.anxiety_index}</span>
+        ${d.advice_completed ? '<span class="text-stability" title="已採納建議"><i data-lucide=\'check-circle\' style=\'width:12px;height:12px\'></i> 已採納建議</span>' : ''}
+        ${d.crisis_alert ? '<span class="crisis-tag">⚠ 危機提示</span>' : ''}
       `;
 
       meta.appendChild(dateStr);
@@ -927,19 +1106,6 @@ function setupFirebaseAuth() {
   }
 
   // --- SETTINGS OPERATIONS ---
-  function saveSettings() {
-    const key = els.settingsApiKey.value.trim();
-    state.customApiKey = key;
-    if (key) {
-      localStorage.setItem('gemini_api_key', key);
-      alert('已成功將 API 金鑰儲存於本機瀏覽器！');
-    } else {
-      localStorage.removeItem('gemini_api_key');
-      alert('已清除自訂 API 金鑰，系統將嘗試使用伺服器端環境變數配置。');
-    }
-    updateApiIndicator();
-  }
-
   async function clearDatabase() {
     if (!confirm('您確定要清空所有日記紀錄嗎？這會刪除資料庫中的所有儲存檔案。')) {
       return;
@@ -959,6 +1125,351 @@ function setupFirebaseAuth() {
     } catch (e) {
       console.error(e);
       alert('清空失敗');
+    }
+  }
+
+  // --- DATA EXPORT (JSON / CSV) ---
+  function exportDiaries(format) {
+    if (!state.diaries || state.diaries.length === 0) {
+      alert('目前沒有可匯出的日記資料。');
+      return;
+    }
+
+    const cols = [
+      'date', 'content', 'emotion_score', 'stress_index',
+      'anxiety_index', 'stability_index', 'positive_emotions',
+      'negative_emotions', 'summary', 'advice', 'advice_completed', 'crisis_alert'
+    ];
+
+    let blob, filename;
+
+    if (format === 'json') {
+      const data = state.diaries.map(d => {
+        const obj = {};
+        cols.forEach(c => { obj[c] = d[c]; });
+        return obj;
+      });
+      blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      filename = `diary_export_${new Date().toISOString().slice(0, 10)}.json`;
+    } else {
+      const esc = (v) => {
+        if (v === undefined || v === null) return '';
+        const s = Array.isArray(v) ? v.join('; ') : String(v);
+        return `"${s.replace(/"/g, '""')}"`;
+      };
+      const header = cols.join(',');
+      const rows = state.diaries.map(d => cols.map(c => esc(d[c])).join(','));
+      const csv = '\uFEFF' + [header, ...rows].join('\n'); // BOM for Excel 中文編碼
+      blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      filename = `diary_export_${new Date().toISOString().slice(0, 10)}.csv`;
+    }
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // --- AI WEEK/MONTH REPORT ---
+  async function handleGenerateReport() {
+    const period = els.reportPeriodSelect ? els.reportPeriodSelect.value : 'week';
+
+    els.btnGenerateReport.disabled = true;
+    const originalHtml = els.btnGenerateReport.innerHTML;
+    els.btnGenerateReport.innerHTML = '正在產生報告...';
+
+    try {
+      const res = await fetch('/api/diaries/report', {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+        body: JSON.stringify({ period })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || '報告產生失敗');
+      }
+
+      if (data.totalCount === 0) {
+        els.reportPlaceholder.classList.remove('hidden');
+        els.reportContent.classList.add('hidden');
+        els.reportPlaceholder.querySelector('p').textContent = data.message;
+        return;
+      }
+
+      state.currentReport = data;
+      renderReport(data);
+
+    } catch (e) {
+      console.error('產生報告失敗:', e);
+      alert('產生報告失敗：' + e.message);
+    } finally {
+      els.btnGenerateReport.disabled = false;
+      els.btnGenerateReport.innerHTML = originalHtml;
+      lucide.createIcons();
+    }
+  }
+
+  function renderReport(data) {
+    els.reportPlaceholder.classList.add('hidden');
+    els.reportContent.classList.remove('hidden');
+
+    els.reportMetaCount.textContent = `共 ${data.totalCount} 篇日記`;
+    els.reportMetaRange.textContent = `${data.startDate} ~ ${data.endDate}`;
+
+    els.reportOverview.textContent = data.overview || '無';
+    els.reportTrendInsight.textContent = data.trend_insight || '無';
+    els.reportRecommendation.textContent = data.recommendation || '無';
+
+    renderChipList(els.reportStressors, data.top_stressors, 'neg');
+    renderChipList(els.reportHighlights, data.positive_highlights, 'pos');
+
+    renderWeekdayChart(data.weekdayAverages);
+  }
+
+  function renderChipList(container, list, type) {
+    if (!container) return;
+    container.innerHTML = '';
+    const arr = Array.isArray(list) ? list : [];
+    if (arr.length === 0) {
+      container.innerHTML = '<span class="text-muted" style="font-size:12px">無</span>';
+      return;
+    }
+    arr.forEach(item => {
+      const span = document.createElement('span');
+      span.className = `keyword-badge ${type}`;
+      span.textContent = item;
+      container.appendChild(span);
+    });
+  }
+
+  function renderWeekdayChart(weekdayAverages) {
+    const canvas = document.getElementById('weekdayChart');
+    if (!canvas || !weekdayAverages) return;
+
+    if (state.charts.weekday) {
+      state.charts.weekday.destroy();
+    }
+
+    const themeColors = getChartThemeColors();
+
+    state.charts.weekday = new Chart(canvas.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: weekdayAverages.map(w => w.label),
+        datasets: [{
+          label: '平均情緒分數',
+          data: weekdayAverages.map(w => w.average),
+          backgroundColor: 'rgba(139, 92, 246, 0.55)',
+          borderRadius: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: {
+            min: 0, max: 100,
+            grid: { color: themeColors.grid },
+            ticks: { color: themeColors.text }
+          },
+          x: {
+            grid: { display: false },
+            ticks: { color: themeColors.text }
+          }
+        }
+      }
+    });
+  }
+
+  // 匯出報告為 PDF（透過瀏覽器列印功能另存為 PDF，避免額外引入大型函式庫）
+  function exportReportAsPdf() {
+    if (!state.currentReport) {
+      alert('請先產生報告。');
+      return;
+    }
+    const d = state.currentReport;
+    const printWindow = window.open('', '_blank');
+    const stressors = (d.top_stressors || []).map(s => `<span class="chip neg">${s}</span>`).join('');
+    const highlights = (d.positive_highlights || []).map(s => `<span class="chip pos">${s}</span>`).join('');
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html lang="zh-TW"><head><meta charset="UTF-8">
+      <title>心靈微光 - AI 心理報告</title>
+      <style>
+        body { font-family: 'Noto Sans TC', sans-serif; padding: 32px; color: #1e1b2e; line-height: 1.7; }
+        h1 { color: #7c3aed; margin-bottom: 4px; }
+        h2 { margin-top: 28px; border-left: 4px solid #7c3aed; padding-left: 10px; }
+        .meta { color: #6b6478; margin-bottom: 20px; }
+        .metrics { display: flex; gap: 16px; margin: 16px 0; }
+        .metric { background: #f4f3fb; padding: 10px 16px; border-radius: 10px; text-align: center; }
+        .chip { display: inline-block; background: #ede9fe; color: #5b21b6; padding: 4px 10px; border-radius: 999px; margin: 4px 6px 0 0; font-size: 13px; }
+        .chip.neg { background: #fee2e2; color: #b91c1c; }
+        @media print { body { padding: 12px; } }
+      </style>
+      </head><body>
+        <h1>心靈微光 · AI 心理報告</h1>
+        <p class="meta">期間：${d.startDate} ~ ${d.endDate}（共 ${d.totalCount} 篇日記，${d.period === 'month' ? '月報' : '週報'}）</p>
+
+        <div class="metrics">
+          <div class="metric"><strong>${d.periodStats.emotion}</strong><br>平均情緒</div>
+          <div class="metric"><strong>${d.periodStats.stress}</strong><br>平均壓力</div>
+          <div class="metric"><strong>${d.periodStats.anxiety}</strong><br>平均焦慮</div>
+          <div class="metric"><strong>${d.periodStats.stability}</strong><br>平均穩定度</div>
+        </div>
+
+        <h2>整體總結</h2>
+        <p>${d.overview || ''}</p>
+
+        <h2>趨勢觀察</h2>
+        <p>${d.trend_insight || ''}</p>
+
+        <h2>主要壓力來源</h2>
+        <p>${stressors || '無'}</p>
+
+        <h2>正向亮點</h2>
+        <p>${highlights || '無'}</p>
+
+        <h2>心理健康建議</h2>
+        <p>${d.recommendation || ''}</p>
+      </body></html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => printWindow.print(), 400);
+  }
+
+  // --- VOICE INPUT (Web Speech API) ---
+  function setupVoiceInput() {
+    if (!els.btnVoiceInput) return;
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      els.btnVoiceInput.disabled = true;
+      els.btnVoiceInput.title = '此瀏覽器不支援語音輸入';
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'zh-TW';
+    recognition.continuous = true;
+    recognition.interimResults = false;
+
+    recognition.onresult = (event) => {
+      let finalText = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) {
+          finalText += event.results[i][0].transcript;
+        }
+      }
+      if (finalText) {
+        const sep = els.diaryContent.value && !els.diaryContent.value.endsWith('\n') ? '\n' : '';
+        els.diaryContent.value += sep + finalText;
+        els.charCount.textContent = els.diaryContent.value.length;
+      }
+    };
+
+    recognition.onerror = (e) => {
+      console.error('語音辨識錯誤:', e.error);
+      stopRecording();
+    };
+
+    recognition.onend = () => {
+      if (state.isRecording) {
+        // 使用者仍在錄音狀態但服務中斷，嘗試重啟一次
+        try { recognition.start(); } catch (e) { stopRecording(); }
+      }
+    };
+
+    function startRecording() {
+      try {
+        recognition.start();
+        state.isRecording = true;
+        els.btnVoiceInput.classList.add('recording');
+        els.btnVoiceInput.title = '點擊停止錄音';
+      } catch (e) {
+        console.error('無法啟動語音輸入:', e);
+      }
+    }
+
+    function stopRecording() {
+      try { recognition.stop(); } catch (e) {}
+      state.isRecording = false;
+      els.btnVoiceInput.classList.remove('recording');
+      els.btnVoiceInput.title = '點擊開始語音輸入';
+    }
+
+    els.btnVoiceInput.addEventListener('click', () => {
+      if (state.isRecording) {
+        stopRecording();
+      } else {
+        startRecording();
+      }
+    });
+  }
+
+  // --- DAILY REMINDER (Notification API) ---
+  function setupReminder() {
+    if (!els.btnEnableReminder) return;
+
+    updateReminderStatusUI();
+
+    els.btnEnableReminder.addEventListener('click', async () => {
+      if (!('Notification' in window)) {
+        alert('此瀏覽器不支援通知功能。');
+        return;
+      }
+      const permission = await Notification.requestPermission();
+      updateReminderStatusUI();
+      if (permission === 'granted') {
+        localStorage.setItem('reminder_enabled', '1');
+        new Notification('心靈微光', { body: '提醒功能已開啟，若今天還沒寫日記，我們會在稍後提醒您。' });
+      }
+    });
+
+    // 每次載入頁面時檢查一次：若已授權、開啟提醒，且今天尚未寫日記，則顯示一次提醒
+    maybeShowDailyReminder();
+  }
+
+  function updateReminderStatusUI() {
+    if (!els.reminderStatus) return;
+    const enabled = localStorage.getItem('reminder_enabled') === '1' &&
+      (typeof Notification !== 'undefined' && Notification.permission === 'granted');
+    els.reminderStatus.textContent = enabled ? '提醒已開啟' : '提醒尚未開啟';
+    els.reminderStatus.className = enabled ? 'status-text text-emotion' : 'status-text text-muted';
+    if (els.btnEnableReminder) {
+      els.btnEnableReminder.textContent = enabled ? '提醒已啟用' : '開啟每日提醒';
+      els.btnEnableReminder.disabled = enabled;
+    }
+  }
+
+  async function maybeShowDailyReminder() {
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+    if (localStorage.getItem('reminder_enabled') !== '1') return;
+
+    const today = new Date().toISOString().slice(0, 10);
+    const lastPrompt = localStorage.getItem('reminder_last_prompt');
+    if (lastPrompt === today) return; // 今天已經提醒過一次
+
+    if (!state.currentUser) return;
+
+    try {
+      const res = await fetch(`/api/diaries/${today}`, { headers: await getAuthHeaders() });
+      if (res.status === 404) {
+        new Notification('心靈微光 · 每日提醒', {
+          body: '今天還沒有寫日記喔，花幾分鐘記錄一下今天的心情吧！'
+        });
+      }
+      localStorage.setItem('reminder_last_prompt', today);
+    } catch (e) {
+      console.error('每日提醒檢查失敗:', e);
     }
   }
 
