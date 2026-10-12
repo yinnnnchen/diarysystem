@@ -10,14 +10,11 @@ function init() {
   return Promise.resolve();
 }
 
-
 function diaryDocId(user_id, date) {
   return `${user_id}_${date}`;
 }
 
-
 async function saveDiary(diaryData) {
-
   const { user_id, date } = diaryData;
 
   if (!user_id) {
@@ -46,10 +43,13 @@ async function saveDiary(diaryData) {
 
     crisis_alert: !!diaryData.crisis_alert,
 
+    // 若傳入有明確指定 advice_completed 則採用傳入值；否則保留既有值
     advice_completed:
-      existing.exists && existing.data().advice_completed !== undefined
-        ? existing.data().advice_completed
-        : false,
+      diaryData.advice_completed !== undefined
+        ? !!diaryData.advice_completed
+        : (existing.exists && existing.data().advice_completed !== undefined
+            ? existing.data().advice_completed
+            : false),
 
     created_at:
       existing.exists
@@ -69,7 +69,6 @@ async function saveDiary(diaryData) {
 }
 
 async function getDiaryByDate(user_id, date) {
-
   const docRef = db.collection(COLLECTION).doc(diaryDocId(user_id, date));
   const snap = await docRef.get();
 
@@ -95,12 +94,10 @@ async function getAllDiaries(user_id) {
   }));
 
   diaries.sort((a, b) => a.date.localeCompare(b.date));
-
   return diaries;
 }
 
 async function deleteDiary(user_id, date) {
-
   const docRef = db.collection(COLLECTION).doc(diaryDocId(user_id, date));
   const snap = await docRef.get();
 
@@ -109,12 +106,11 @@ async function deleteDiary(user_id, date) {
   }
 
   await docRef.delete();
-
   return { changes: 1 };
 }
 
 // 取得某段日期區間內的日記（用於週報 / 月報 / 情緒關聯分析）
-// startDate / endDate 皆為 'YYYY-MM-DD' 字串，並包含起訖日
+// 提示：此查詢在 Firebase Console 需要 user_id + date 的複合索引 (Composite Index)
 async function getDiariesInRange(user_id, startDate, endDate) {
   const snapshot = await db
     .collection(COLLECTION)
@@ -129,11 +125,9 @@ async function getDiariesInRange(user_id, startDate, endDate) {
   }));
 
   diaries.sort((a, b) => a.date.localeCompare(b.date));
-
   return diaries;
 }
 
-// 更新「建議是否已採納」狀態，用於個人化建議追蹤
 async function updateAdviceStatus(user_id, date, completed) {
   const docRef = db.collection(COLLECTION).doc(diaryDocId(user_id, date));
   const snap = await docRef.get();
