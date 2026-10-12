@@ -38,7 +38,6 @@ document.addEventListener('DOMContentLoaded', () => {
     selectedDiary: null,
     currentUser: null,
     currentReport: null,
-    isRecording: false,
     charts: {
       trend: null,
       radar: null,
@@ -121,8 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btnEnableReminder: document.getElementById('btn-enable-reminder'),
     reminderStatus: document.getElementById('reminder-status'),
 
-    // Write - voice & advice tracking
-    btnVoiceInput: document.getElementById('btn-voice-input'),
+    // Write - advice tracking
     adviceCompleteRow: document.getElementById('advice-complete-row'),
     adviceCompleteCheckbox: document.getElementById('advice-complete-checkbox'),
     crisisBanner: document.getElementById('crisis-banner'),
@@ -175,7 +173,6 @@ document.addEventListener('DOMContentLoaded', () => {
     setupFirebaseAuth();
     setupThemeToggle();
     setupMobileMenu();
-    setupVoiceInput();
     setupReminder();
     checkApiStatus();
     registerServiceWorker();
@@ -1060,23 +1057,22 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!confirm('您確定要清空所有日記紀錄嗎？這會刪除資料庫中的所有儲存檔案。')) {
       return;
     }
-
     try {
       const authHeaders = await getAuthHeaders();
-      const fetchAll = await fetch('/api/diaries', { headers: authHeaders });
-      const list = await fetchAll.json();
-      
-      // 使用 Promise.all 併發刪除，避免逐次串行發送造成網路壅塞與延遲
-      await Promise.all(
-        list.map(d => fetch(`/api/diaries/${d.date}`, { method: 'DELETE', headers: authHeaders }))
-      );
-
-      alert('資料庫已清空！');
+      const res = await fetch('/api/diaries', {
+        method: 'DELETE',
+        headers: authHeaders
+      });
+      if (!res.ok) {
+        throw new Error('伺服器刪除失敗');
+      }
+      const data = await res.json();
+      alert(data.message || '資料庫已清空！');
       await loadAllData();
       await loadLogs();
     } catch (e) {
       console.error(e);
-      alert('清空失敗');
+      alert('清空失敗：' + e.message);
     }
   }
 
@@ -1303,73 +1299,6 @@ document.addEventListener('DOMContentLoaded', () => {
     printWindow.document.close();
     printWindow.focus();
     setTimeout(() => printWindow.print(), 400);
-  }
-
-  function setupVoiceInput() {
-    if (!els.btnVoiceInput) return;
-
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      els.btnVoiceInput.disabled = true;
-      els.btnVoiceInput.title = '此瀏覽器不支援語音輸入';
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'zh-TW';
-    recognition.continuous = true;
-    recognition.interimResults = false;
-
-    recognition.onresult = (event) => {
-      let finalText = '';
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        if (event.results[i].isFinal) {
-          finalText += event.results[i][0].transcript;
-        }
-      }
-      if (finalText) {
-        const sep = els.diaryContent.value && !els.diaryContent.value.endsWith('\n') ? '\n' : '';
-        els.diaryContent.value += sep + finalText;
-        els.charCount.textContent = els.diaryContent.value.length;
-      }
-    };
-
-    recognition.onerror = (e) => {
-      console.error('語音辨識錯誤:', e.error);
-      stopRecording();
-    };
-
-    recognition.onend = () => {
-      if (state.isRecording) {
-        try { recognition.start(); } catch (e) { stopRecording(); }
-      }
-    };
-
-    function startRecording() {
-      try {
-        recognition.start();
-        state.isRecording = true;
-        els.btnVoiceInput.classList.add('recording');
-        els.btnVoiceInput.title = '點擊停止錄音';
-      } catch (e) {
-        console.error('無法啟動語音輸入:', e);
-      }
-    }
-
-    function stopRecording() {
-      try { recognition.stop(); } catch (e) {}
-      state.isRecording = false;
-      els.btnVoiceInput.classList.remove('recording');
-      els.btnVoiceInput.title = '點擊開始語音輸入';
-    }
-
-    els.btnVoiceInput.addEventListener('click', () => {
-      if (state.isRecording) {
-        stopRecording();
-      } else {
-        startRecording();
-      }
-    });
   }
 
   function setupReminder() {

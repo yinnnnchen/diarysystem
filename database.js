@@ -112,20 +112,28 @@ async function deleteDiary(user_id, date) {
 // 取得某段日期區間內的日記（用於週報 / 月報 / 情緒關聯分析）
 // 提示：此查詢在 Firebase Console 需要 user_id + date 的複合索引 (Composite Index)
 async function getDiariesInRange(user_id, startDate, endDate) {
-  const snapshot = await db
-    .collection(COLLECTION)
-    .where('user_id', '==', user_id)
-    .where('date', '>=', startDate)
-    .where('date', '<=', endDate)
-    .get();
-
-  const diaries = snapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  }));
-
-  diaries.sort((a, b) => a.date.localeCompare(b.date));
-  return diaries;
+  try {
+    const snapshot = await db
+      .collection(COLLECTION)
+      .where('user_id', '==', user_id)
+      .where('date', '>=', startDate)
+      .where('date', '<=', endDate)
+      .get();
+    const diaries = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    diaries.sort((a, b) => a.date.localeCompare(b.date));
+    return diaries;
+  } catch (error) {
+    // 若尚未建立複合索引 (FAILED_PRECONDITION / Error code 9)，降級為在記憶體中篩選
+    if (error.code === 9 || error.message?.includes('index')) {
+      console.warn('[Firestore] 複合索引尚未建立，啟動記憶體篩選降級方案:', error.message);
+      const allDiaries = await getAllDiaries(user_id);
+      return allDiaries.filter(d => d.date >= startDate && d.date <= endDate);
+    }
+    throw error;
+  }
 }
 
 async function updateAdviceStatus(user_id, date, completed) {
@@ -151,6 +159,28 @@ async function updateAdviceStatus(user_id, date, completed) {
   };
 }
 
+async function clearAllDiaries(user_id) {
+  const snapshot = await db
+    .collection(COLLECTION)
+    .where('user_id', '==', user_id)
+    .get();
+  if (snapshot.empty) {
+    return 0;
+  }
+  // Firestore batch 單次上限 500 筆，採分批提交
+  const BATCH_SIZE = 450;
+  let totalDeleted = 0;
+  const docs = snapshot.docs;
+  for (let i = 0; i < docs.length; i += BATCH_SIZE) {
+    const batch = db.batch();
+    const chunk = docs.slice(i, i + BATCH_SIZE);
+    chunk.forEach(doc => batch.delete(doc.ref));
+    await batch.commit();
+    totalDeleted += chunk.length;
+  }
+  return totalDeleted;
+}
+
 module.exports = {
   init,
   saveDiary,
@@ -158,5 +188,6 @@ module.exports = {
   getAllDiaries,
   getDiariesInRange,
   updateAdviceStatus,
-  deleteDiary
+  deleteDiary,
+  clearAllDiaries
 };

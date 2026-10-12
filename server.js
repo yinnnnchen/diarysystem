@@ -92,9 +92,20 @@ function getGeminiClient() {
   return new GoogleGenerativeAI(apiKey);
 }
 
-// ========================================
-// 危機字詞偵測（本地關鍵字比對）
-// ========================================
+/**
+ * 安全解析 AI 回傳的 JSON，過濾開頭與結尾的 Markdown 圍欄字元
+ */
+function safeParseAiJson(rawText) {
+  if (!rawText || typeof rawText !== 'string') {
+    throw new Error('AI 回傳內容為空');
+  }
+  const cleaned = rawText
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim();
+  return JSON.parse(cleaned);
+}
+
 const CRISIS_KEYWORDS = [
   '自殺', '想死', '不想活', '活不下去', '結束生命', '自我了斷',
   '自殘', '割腕', '傷害自己', '消失就好', '沒有存在的意義',
@@ -127,6 +138,13 @@ const CRISIS_RESOURCES = {
 // ========================================
 const MAX_DIARY_LENGTH = 5000;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function addDaysToDateStr(dateStr, days) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  // 固定在中午 12:00 UTC，防止跨日光節約時間或午夜時區抖動
+  const date = new Date(Date.UTC(y, m - 1, d + days, 12, 0, 0));
+  return date.toISOString().slice(0, 10);
+}
 
 function isValidDate(value) {
   if (typeof value !== 'string' || !DATE_RE.test(value)) return false;
@@ -274,9 +292,8 @@ JSON Schema：
 
     const text = result.response.text();
     let analysis;
-
     try {
-      analysis = JSON.parse(text);
+      analysis = safeParseAiJson(text);
     } catch (error) {
       console.error('Gemini JSON 解析失敗:', text);
       throw new Error('AI 回傳格式錯誤，請重新分析。');
@@ -407,6 +424,21 @@ app.delete('/api/diaries/:date', authenticateUser, async (req, res) => {
   }
 });
 
+app.delete('/api/diaries', authenticateUser, async (req, res) => {
+  try {
+    const count = await db.clearAllDiaries(req.user.uid);
+    res.json({
+      success: true,
+      message: `已清空 ${count} 篇日記。`
+    });
+  } catch (error) {
+    console.error('清空日記失敗:', error.message);
+    res.status(500).json({
+      error: '伺服器發生錯誤，請稍後再試。'
+    });
+  }
+});
+
 // ========================================
 // 個人化建議追蹤
 // ========================================
@@ -443,18 +475,14 @@ app.patch('/api/diaries/:date/advice-status', authenticateUser, async (req, res)
 app.post('/api/diaries/report', authenticateUser, rateLimit(5, 60 * 1000), async (req, res) => {
   try {
     const period = req.body.period === 'month' ? 'month' : 'week';
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(
-      startDate.getDate() - (period === 'month' ? 29 : 6)
-    );
-
-    const toDateStr = (d) => taipeiDateStr(d);
-
+    const todayStr = taipeiDateStr();
+    const daysBack = period === 'month' ? 29 : 6;
+    const startDateStr = addDaysToDateStr(todayStr, -daysBack);
+    const endDateStr = todayStr;
     const diaries = await db.getDiariesInRange(
       req.user.uid,
-      toDateStr(startDate),
-      toDateStr(endDate)
+      startDateStr,
+      endDateStr
     );
 
     if (diaries.length === 0) {
@@ -513,9 +541,8 @@ ${diarySummaries}
 
     const text = result.response.text();
     let report;
-
     try {
-      report = JSON.parse(text);
+      report = safeParseAiJson(text);
     } catch (error) {
       console.error('報告 JSON 解析失敗:', text);
       throw new Error('AI 報告格式錯誤，請重新產生。');
@@ -601,14 +628,13 @@ app.get('/api/stats', authenticateUser, async (req, res) => {
     const dateSet = new Set(diaries.map(d => d.date));
     const toDateStr = (d) => taipeiDateStr(d);
     let streak = 0;
-    let cursor = new Date();
-
-    if (!dateSet.has(toDateStr(cursor))) {
-      cursor.setDate(cursor.getDate() - 1);
+    let checkDate = taipeiDateStr();
+    if (!dateSet.has(checkDate)) {
+      checkDate = addDaysToDateStr(checkDate, -1);
     }
-    while (dateSet.has(toDateStr(cursor))) {
+    while (dateSet.has(checkDate)) {
       streak += 1;
-      cursor.setDate(cursor.getDate() - 1);
+      checkDate = addDaysToDateStr(checkDate, -1);
     }
 
     res.json({
