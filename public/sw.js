@@ -1,4 +1,4 @@
-const CACHE_NAME = 'psycho-diary-shell-v7';
+const CACHE_NAME = 'psycho-diary-shell-v8';
 
 const SHELL_ASSETS = [
   '/',

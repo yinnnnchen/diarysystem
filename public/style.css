@@ -1,23 +1,23 @@
 :root {
-  --bg-main: #0e171c;
-  --bg-sidebar: #0a1216;
-  --bg-card: #15222a;
-  --bg-card-hover: #182831;
-  --border-color: rgba(232, 227, 214, 0.1);
-  --border-color-glow: rgba(227, 207, 158, 0.4);
+  --bg-main: #04070a;
+  --bg-sidebar: #070c0f;
+  --bg-card: #0c1217;
+  --bg-card-hover: #111a21;
+  --border-color: rgba(232, 227, 214, 0.08);
+  --border-color-glow: rgba(230, 192, 120, 0.45);
 
-  /* 燈火色：唯一的強調色，用於主要按鈕、選中狀態與焦點 */
-  --color-primary: #e3cf9e;
-  --color-primary-glow: rgba(227, 207, 158, 0.45);
-  --color-on-primary: #1b1608;
-  --color-text-main: #e8e3d6;
-  --color-text-muted: #9aa7a6;
+  /* 燈火色：在曜石黑底上更具純淨微光感 */
+  --color-primary: #e6c078;
+  --color-primary-glow: rgba(230, 192, 120, 0.35);
+  --color-on-primary: #120e04;
+  --color-text-main: #f2eee6;
+  --color-text-muted: #8fa2a6;
 
   /* Indicator Colors（四項指標，彼此保持色相差距） */
-  --color-emotion: #8cc4a3;
-  --color-stress: #e38b7c;
-  --color-anxiety: #e2b866;
-  --color-stability: #86abd3;
+  --color-emotion: #48bb78;
+  --color-stress: #f56565;
+  --color-anxiety: #ed8936;
+  --color-stability: #4299e1;
   --color-danger: #e5766a;
 
   --overlay-1: rgba(232, 227, 214, 0.015);
@@ -27,34 +27,34 @@
   --overlay-5: rgba(232, 227, 214, 0.07);
   --overlay-6: rgba(232, 227, 214, 0.11);
 
-  --modal-bg: #121e25;
-  --modal-backdrop-color: rgba(4, 9, 12, 0.72);
+  --modal-bg: #0c1217;
+  --modal-backdrop-color: rgba(2, 4, 6, 0.82);
 
   --font-family: 'Noto Sans TC', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-display: 'Noto Serif TC', 'Songti TC', 'PMingLiU', serif;
   --sidebar-width: 260px;
-  --transition-speed: 0.2s;
+  --transition-speed: 0.22s;
 }
 
-/* Light theme：同一組語彙，淺色版（冷調紙面、深燈火色強調） */
+/* Light theme：燕麥棉紙、深暖琥珀色強調 */
 :root[data-theme="light"] {
-  --bg-main: #eef0ec;
-  --bg-sidebar: #f9f8f3;
-  --bg-card: #fffefa;
-  --bg-card-hover: #ffffff;
-  --border-color: rgba(26, 42, 48, 0.12);
-  --border-color-glow: rgba(122, 92, 30, 0.45);
+  --bg-main: #f7f5ef;
+  --bg-sidebar: #f0ede4;
+  --bg-card: #ffffff;
+  --bg-card-hover: #faf7f2;
+  --border-color: rgba(25, 37, 43, 0.09);
+  --border-color-glow: rgba(146, 102, 29, 0.45);
 
-  --color-primary: #7a5c1e;
-  --color-primary-glow: rgba(122, 92, 30, 0.35);
-  --color-on-primary: #fffdf6;
-  --color-text-main: #1a2a30;
-  --color-text-muted: #5b6b6c;
+  --color-primary: #92661d;
+  --color-primary-glow: rgba(146, 102, 29, 0.3);
+  --color-on-primary: #fffdf9;
+  --color-text-main: #1a262b;
+  --color-text-muted: #57676c;
 
-  --color-emotion: #2f7d58;
-  --color-stress: #bf4a3a;
-  --color-anxiety: #9a6a12;
-  --color-stability: #2f5f94;
+  --color-emotion: #2f855a;
+  --color-stress: #c53030;
+  --color-anxiety: #c05621;
+  --color-stability: #2b6cb0;
   --color-danger: #b8392d;
 
   --overlay-1: rgba(26, 42, 48, 0.02);
@@ -64,8 +64,8 @@
   --overlay-5: rgba(26, 42, 48, 0.065);
   --overlay-6: rgba(26, 42, 48, 0.1);
 
-  --modal-bg: #fffefa;
-  --modal-backdrop-color: rgba(14, 23, 28, 0.45);
+  --modal-bg: #ffffff;
+  --modal-backdrop-color: rgba(10, 16, 20, 0.5);
 }
 
 * {
@@ -517,19 +517,22 @@ body {
   border: 1px solid rgba(244, 63, 94, 0.2);
 }
 
-/* Tab 2: Diary Writing & Editor layout */
+/* Tab 2: Diary Writing & Editor layout - 專注手札模式 (Zen Focus Mode) */
 .diary-editor-layout {
-  display: grid;
-  grid-template-columns: 1.5fr 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 24px;
-  align-items: stretch;
+  max-width: 880px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 .editor-card {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  height: 520px;
+  gap: 18px;
+  height: auto;
+  min-height: 440px;
 }
 
 .editor-header {
@@ -582,14 +585,15 @@ body {
   gap: 12px;
 }
 
-/* Analysis Panel */
+/* Analysis Panel - 自適應手札展開式卡片 */
 .analysis-panel {
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   text-align: center;
-  min-height: 520px;
+  min-height: auto;
+  width: 100%;
 }
 
 .analysis-panel-placeholder {
@@ -598,7 +602,8 @@ body {
   align-items: center;
   gap: 16px;
   color: var(--color-text-muted);
-  max-width: 300px;
+  max-width: 420px;
+  padding: 20px 0;
 }
 
 .floating-icon {
@@ -1155,7 +1160,7 @@ body {
   }
 
   .main-content {
-    padding: 20px;
+    padding: 20px 16px 88px;
   }
 
   .user-profile {
@@ -1566,5 +1571,80 @@ body.no-scroll {
 
   #user-email {
     display: none;
+  }
+}
+
+/* ============================================================
+   心靈問候語 (Empathetic Greeting) 與 行動端底部導航 Dock (Bottom Nav Dock)
+   ============================================================ */
+
+.empathetic-greeting {
+  font-size: 13px;
+  color: var(--color-primary);
+  margin-bottom: 4px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.bottom-nav-dock {
+  display: none;
+}
+
+@media (max-width: 860px) {
+  .bottom-nav-dock {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 64px;
+    background: var(--bg-card);
+    border-top: 1px solid var(--border-color);
+    z-index: 180;
+    align-items: center;
+    justify-content: space-around;
+    padding: 0 10px;
+    box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.4);
+  }
+
+  .bottom-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-muted);
+    text-decoration: none;
+    font-size: 11px;
+    gap: 3px;
+    flex: 1;
+    height: 100%;
+    transition: all var(--transition-speed) ease;
+  }
+
+  .bottom-nav-item i {
+    width: 18px;
+    height: 18px;
+  }
+
+  .bottom-nav-item:hover,
+  .bottom-nav-item.active {
+    color: var(--color-primary);
+    font-weight: 600;
+  }
+
+  .bottom-nav-item.accent-btn {
+    color: var(--color-on-primary);
+    background: var(--color-primary);
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    flex: 0 0 48px;
+    box-shadow: 0 4px 16px rgba(230, 192, 120, 0.35);
+    transform: translateY(-8px);
+  }
+
+  .bottom-nav-item.accent-btn i {
+    width: 20px;
+    height: 20px;
   }
 }

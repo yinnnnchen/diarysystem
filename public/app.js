@@ -69,7 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // UI Elements
   const els = {
-    navItems: document.querySelectorAll('.nav-item'),
+    navItems: document.querySelectorAll('.nav-item, .bottom-nav-item'),
     tabPanes: document.querySelectorAll('.tab-pane'),
     pageTitle: document.getElementById('page-title'),
     pageSubtitle: document.getElementById('page-subtitle'),
@@ -175,7 +175,23 @@ document.addEventListener('DOMContentLoaded', () => {
     setupMobileMenu();
     setupReminder();
     checkApiStatus();
+    updateGreeting();
     registerServiceWorker();
+  }
+
+  function updateGreeting() {
+    const greetingEl = document.getElementById('empathetic-greeting');
+    if (!greetingEl) return;
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 11) {
+      greetingEl.textContent = '早安，今天也是嶄新平靜的一天。';
+    } else if (hour >= 11 && hour < 18) {
+      greetingEl.textContent = '午後安好，記得深呼吸放鬆片刻。';
+    } else if (hour >= 18 && hour < 23) {
+      greetingEl.textContent = '晚安，卸下一天的忙碌與疲憊吧。';
+    } else {
+      greetingEl.textContent = '夜深了，讓心情在微光中沉澱。';
+    }
   }
 
   function registerServiceWorker() {

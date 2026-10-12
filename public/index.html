@@ -95,6 +95,7 @@
           <i data-lucide="menu"></i>
         </button>
         <div class="header-title-area">
+          <div class="empathetic-greeting" id="empathetic-greeting">夜深了，讓心情在微光中沉澱。</div>
           <h2 id="page-title">身心儀表板</h2>
           <p id="page-subtitle" class="text-muted">追蹤您的日常情緒、壓力和焦慮趨勢</p>
         </div>
@@ -539,6 +540,29 @@
       </div>
     </div>
   </div>
+
+  <!-- 行動端底部導航列 (Mobile Bottom Dock) -->
+  <nav class="bottom-nav-dock" id="mobile-bottom-dock" aria-label="行動端導航">
+    <a href="#dashboard" class="bottom-nav-item active" data-tab="dashboard">
+      <i data-lucide="layout-dashboard"></i>
+      <span>儀表板</span>
+    </a>
+    <a href="#logs" class="bottom-nav-item" data-tab="logs">
+      <i data-lucide="book-open"></i>
+      <span>時光機</span>
+    </a>
+    <a href="#write" class="bottom-nav-item accent-btn" data-tab="write" aria-label="撰寫今日日記">
+      <i data-lucide="pen-tool"></i>
+    </a>
+    <a href="#report" class="bottom-nav-item" data-tab="report">
+      <i data-lucide="file-text"></i>
+      <span>週報</span>
+    </a>
+    <a href="#settings" class="bottom-nav-item" data-tab="settings">
+      <i data-lucide="settings"></i>
+      <span>設定</span>
+    </a>
+  </nav>
 
   <script type="module" src="app.js"></script>
 </body>
