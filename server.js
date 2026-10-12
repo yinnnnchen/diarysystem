@@ -82,7 +82,7 @@ async function authenticateUser(req, res, next) {
   }
 }
 
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.0-flash';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 
 function getGeminiClient() {
   const apiKey = process.env.GEMINI_API_KEY;
