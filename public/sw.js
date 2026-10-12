@@ -1,9 +1,4 @@
-// 心靈微光 - Service Worker
-// 策略：
-//  - App shell（HTML/CSS/JS/icons）採用 cache-first，離線時仍可開啟介面
-//  - /api/ 開頭的動態資料一律 network-first，避免顯示過期的日記/分析結果，
-//    離線時才退回快取（若有）或回傳簡單的離線提示
-const CACHE_NAME = 'psycho-diary-shell-v1';
+const CACHE_NAME = 'psycho-diary-shell-v3';
 
 const SHELL_ASSETS = [
   '/',

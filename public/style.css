@@ -1,71 +1,71 @@
-/* Design Tokens & Theme Configuration */
 :root {
-  --bg-main: #0b0f19;
-  --bg-sidebar: #060911;
-  --bg-card: rgba(20, 26, 42, 0.65);
-  --bg-card-hover: rgba(26, 34, 55, 0.8);
-  --border-color: rgba(255, 255, 255, 0.08);
-  --border-color-glow: rgba(139, 92, 246, 0.3);
+  --bg-main: #0e171c;
+  --bg-sidebar: #0a1216;
+  --bg-card: #15222a;
+  --bg-card-hover: #182831;
+  --border-color: rgba(232, 227, 214, 0.1);
+  --border-color-glow: rgba(227, 207, 158, 0.4);
 
-  /* HSL Tailored Color Palette */
-  --color-primary: #8b5cf6; /* Violet */
-  --color-primary-glow: rgba(139, 92, 246, 0.5);
-  --color-text-main: #e2e8f0;
-  --color-text-muted: #94a3b8;
+  /* 燈火色：唯一的強調色，用於主要按鈕、選中狀態與焦點 */
+  --color-primary: #e3cf9e;
+  --color-primary-glow: rgba(227, 207, 158, 0.45);
+  --color-on-primary: #1b1608;
+  --color-text-main: #e8e3d6;
+  --color-text-muted: #9aa7a6;
 
-  /* Indicator Colors */
-  --color-emotion: #10b981; /* Emerald */
-  --color-stress: #f43f5e; /* Coral/Red */
-  --color-anxiety: #f59e0b; /* Amber */
-  --color-stability: #3b82f6; /* Blue */
+  /* Indicator Colors（四項指標，彼此保持色相差距） */
+  --color-emotion: #8cc4a3;
+  --color-stress: #e38b7c;
+  --color-anxiety: #e2b866;
+  --color-stability: #86abd3;
+  --color-danger: #e5766a;
 
-  --overlay-1: rgba(255, 255, 255, 0.01);
-  --overlay-2: rgba(255, 255, 255, 0.02);
-  --overlay-3: rgba(255, 255, 255, 0.03);
-  --overlay-4: rgba(255, 255, 255, 0.04);
-  --overlay-5: rgba(255, 255, 255, 0.05);
-  --overlay-6: rgba(255, 255, 255, 0.1);
+  --overlay-1: rgba(232, 227, 214, 0.015);
+  --overlay-2: rgba(232, 227, 214, 0.03);
+  --overlay-3: rgba(232, 227, 214, 0.04);
+  --overlay-4: rgba(232, 227, 214, 0.055);
+  --overlay-5: rgba(232, 227, 214, 0.07);
+  --overlay-6: rgba(232, 227, 214, 0.11);
 
-  --modal-bg: #0e1424;
-  --modal-backdrop-color: rgba(0, 0, 0, 0.7);
+  --modal-bg: #121e25;
+  --modal-backdrop-color: rgba(4, 9, 12, 0.72);
 
-  --font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+  --font-family: 'Noto Sans TC', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Noto Serif TC', 'Songti TC', 'PMingLiU', serif;
   --sidebar-width: 260px;
-  --transition-speed: 0.3s;
+  --transition-speed: 0.2s;
 }
 
-/* Light theme — activated by setting data-theme="light" on <html>.
-   Same accent family (violet primary, emerald/coral/amber/blue
-   indicators), just deepened slightly for contrast against a light
-   background, with the neutral surfaces flipped from near-black to
-   a soft lavender-white. */
+/* Light theme：同一組語彙，淺色版（冷調紙面、深燈火色強調） */
 :root[data-theme="light"] {
-  --bg-main: #f4f3fb;
-  --bg-sidebar: #ffffff;
-  --bg-card: rgba(255, 255, 255, 0.78);
-  --bg-card-hover: rgba(255, 255, 255, 0.97);
-  --border-color: rgba(30, 27, 46, 0.1);
-  --border-color-glow: rgba(124, 58, 237, 0.35);
+  --bg-main: #eef0ec;
+  --bg-sidebar: #f9f8f3;
+  --bg-card: #fffefa;
+  --bg-card-hover: #ffffff;
+  --border-color: rgba(26, 42, 48, 0.12);
+  --border-color-glow: rgba(122, 92, 30, 0.45);
 
-  --color-primary: #7c3aed;
-  --color-primary-glow: rgba(124, 58, 237, 0.35);
-  --color-text-main: #1e1b2e;
-  --color-text-muted: #6b6478;
+  --color-primary: #7a5c1e;
+  --color-primary-glow: rgba(122, 92, 30, 0.35);
+  --color-on-primary: #fffdf6;
+  --color-text-main: #1a2a30;
+  --color-text-muted: #5b6b6c;
 
-  --color-emotion: #059669;
-  --color-stress: #e11d48;
-  --color-anxiety: #d97706;
-  --color-stability: #2563eb;
+  --color-emotion: #2f7d58;
+  --color-stress: #bf4a3a;
+  --color-anxiety: #9a6a12;
+  --color-stability: #2f5f94;
+  --color-danger: #b8392d;
 
-  --overlay-1: rgba(30, 27, 46, 0.02);
-  --overlay-2: rgba(30, 27, 46, 0.035);
-  --overlay-3: rgba(30, 27, 46, 0.045);
-  --overlay-4: rgba(30, 27, 46, 0.055);
-  --overlay-5: rgba(30, 27, 46, 0.06);
-  --overlay-6: rgba(30, 27, 46, 0.09);
+  --overlay-1: rgba(26, 42, 48, 0.02);
+  --overlay-2: rgba(26, 42, 48, 0.035);
+  --overlay-3: rgba(26, 42, 48, 0.045);
+  --overlay-4: rgba(26, 42, 48, 0.055);
+  --overlay-5: rgba(26, 42, 48, 0.065);
+  --overlay-6: rgba(26, 42, 48, 0.1);
 
-  --modal-bg: #ffffff;
-  --modal-backdrop-color: rgba(30, 27, 46, 0.45);
+  --modal-bg: #fffefa;
+  --modal-backdrop-color: rgba(14, 23, 28, 0.45);
 }
 
 * {
@@ -78,6 +78,7 @@ body {
   background-color: var(--bg-main);
   color: var(--color-text-main);
   font-family: var(--font-family);
+  line-height: 1.7;
   overflow-x: hidden;
   height: 100vh;
   height: 100dvh;
@@ -113,27 +114,27 @@ body {
 }
 
 .brand-logo {
-  background: linear-gradient(135deg, var(--color-primary), #6366f1);
+  background: var(--color-primary);
   width: 40px;
   height: 40px;
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 15px var(--color-primary-glow);
   flex-shrink: 0;
 }
 
 .brand-logo i {
-  color: #fff;
+  color: var(--color-on-primary);
   width: 22px;
   height: 22px;
 }
 
 .brand-text h1 {
-  font-size: 18px;
+  font-family: var(--font-display);
+  font-size: 19px;
   font-weight: 700;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.04em;
 }
 
 .brand-text span {
@@ -172,9 +173,12 @@ body {
 }
 
 .nav-item.active {
-  color: #fff;
-  background: linear-gradient(90deg, rgba(139, 92, 246, 0.15) 0%, rgba(99, 102, 241, 0.05) 100%);
-  border-left: 4px solid var(--color-primary);
+  color: var(--color-text-main);
+  background-color: var(--overlay-5);
+}
+
+.nav-item.active i {
+  color: var(--color-primary);
 }
 
 .sidebar-footer {
@@ -248,19 +252,16 @@ body {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background-color: #ef4444;
-  box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+  background-color: var(--color-danger);
   flex-shrink: 0;
 }
 
 .status-dot.success {
-  background-color: #10b981;
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+  background-color: var(--color-emotion);
 }
 
 .status-dot.warning {
-  background-color: #f59e0b;
-  box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+  background-color: var(--color-anxiety);
 }
 
 /* Main Content Area */
@@ -372,17 +373,16 @@ body {
   position: relative;
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
-  padding: 24px;
+  padding: 20px;
   border-radius: 16px;
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 14px;
   overflow: hidden;
   transition: transform var(--transition-speed) ease, border-color var(--transition-speed) ease, background-color var(--transition-speed) ease;
 }
 
 .stat-card:hover {
-  transform: translateY(-4px);
   border-color: var(--border-color-glow);
 }
 
@@ -402,22 +402,22 @@ body {
 }
 
 .stat-card.emotion .stat-icon {
-  background-color: rgba(16, 185, 129, 0.1);
+  background-color: color-mix(in srgb, var(--color-emotion) 14%, transparent);
   color: var(--color-emotion);
 }
 
 .stat-card.stress .stat-icon {
-  background-color: rgba(244, 63, 94, 0.1);
+  background-color: color-mix(in srgb, var(--color-stress) 14%, transparent);
   color: var(--color-stress);
 }
 
 .stat-card.anxiety .stat-icon {
-  background-color: rgba(245, 158, 11, 0.1);
+  background-color: color-mix(in srgb, var(--color-anxiety) 14%, transparent);
   color: var(--color-anxiety);
 }
 
 .stat-card.stability .stat-icon {
-  background-color: rgba(59, 130, 246, 0.1);
+  background-color: color-mix(in srgb, var(--color-stability) 14%, transparent);
   color: var(--color-stability);
 }
 
@@ -438,8 +438,7 @@ body {
   border: 1px solid var(--border-color);
   border-radius: 16px;
   padding: 24px;
-  backdrop-filter: blur(10px);
-  transition: all var(--transition-speed) ease, background-color var(--transition-speed) ease;
+  transition: background-color var(--transition-speed) ease, border-color var(--transition-speed) ease;
 }
 
 .glass-card:hover {
@@ -889,7 +888,6 @@ body {
   position: fixed;
   inset: 0;
   background-color: var(--modal-backdrop-color);
-  backdrop-filter: blur(5px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -995,14 +993,12 @@ body {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--color-primary), #6366f1);
-  color: #fff;
-  box-shadow: 0 4px 15px var(--color-primary-glow);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
 }
 
 .btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px var(--color-primary-glow);
+  filter: brightness(1.07);
 }
 
 .btn-secondary {
@@ -1016,14 +1012,14 @@ body {
 }
 
 .btn-danger {
-  background-color: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.2);
+  background-color: color-mix(in srgb, var(--color-danger) 12%, transparent);
+  color: var(--color-danger);
+  border: 1px solid color-mix(in srgb, var(--color-danger) 28%, transparent);
 }
 
 .btn-danger:hover {
-  background-color: #ef4444;
-  color: #fff;
+  background-color: var(--color-danger);
+  color: var(--bg-main);
 }
 
 .btn-icon-danger {
@@ -1037,8 +1033,8 @@ body {
 }
 
 .btn-icon-danger:hover {
-  color: #ef4444;
-  background-color: rgba(239, 68, 68, 0.1);
+  color: var(--color-danger);
+  background-color: color-mix(in srgb, var(--color-danger) 12%, transparent);
 }
 
 .form-group {
@@ -1258,9 +1254,9 @@ body.no-scroll {
 }
 
 .streak-badge.active {
-  background: rgba(245, 158, 11, 0.15);
-  border-color: rgba(245, 158, 11, 0.4);
-  color: #f59e0b;
+  background: color-mix(in srgb, var(--color-anxiety) 15%, transparent);
+  border-color: color-mix(in srgb, var(--color-anxiety) 40%, transparent);
+  color: var(--color-anxiety);
 }
 
 /* --- Calendar heatmap --- */
@@ -1404,7 +1400,7 @@ body.no-scroll {
 .btn-voice-input.recording {
   background: var(--color-stress);
   border-color: var(--color-stress);
-  color: white;
+  color: var(--bg-main);
   animation: pulse-record 1.4s infinite;
 }
 
@@ -1482,4 +1478,93 @@ body.no-scroll {
 .disclaimer-bar i {
   flex-shrink: 0;
   margin-top: 2px;
+}
+
+
+/* --- 沉靜夜間風：字型、焦點與動態 --- */
+.header-title-area h2,
+.card-header h3,
+.analysis-section-title h3,
+.report-box h4 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+/* 日記書寫區是整個產品最重要的畫面：襯線字、寬鬆行距 */
+.diary-textarea {
+  font-family: var(--font-display);
+  font-size: 17px;
+  line-height: 2;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.diary-textarea:focus-visible {
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+
+/* 統計卡片：標題不換行、關閉裝飾性光暈 */
+.stat-info h3 {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.stat-glow {
+  display: none;
+}
+
+.stat-desc {
+  line-height: 1.5;
+}
+
+
+/* 手機版頂欄：標題優先，登入區不換行，未登入文字省略 */
+@media (max-width: 480px) {
+  .content-header {
+    gap: 10px;
+  }
+
+  .header-title-area {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .user-profile {
+    flex: 0 0 auto;
+    width: auto;
+  }
+
+  .header-title-area .text-muted {
+    display: none;
+  }
+
+  .firebase-user {
+    flex-shrink: 0;
+  }
+
+  .firebase-user .btn,
+  #user-email {
+    white-space: nowrap;
+  }
+
+  #user-email {
+    display: none;
+  }
 }

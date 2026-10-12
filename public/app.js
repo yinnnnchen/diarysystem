@@ -189,7 +189,7 @@ function setupThemeToggle() {
   function applyMetaThemeColor(theme) {
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) {
-      meta.setAttribute('content', theme === 'light' ? '#f4f3fb' : '#0b0f19');
+      meta.setAttribute('content', theme === 'light' ? '#eef0ec' : '#0e171c');
     }
   }
 
@@ -253,12 +253,24 @@ function setupMobileMenu() {
   });
 }
 
+// 圖表顏色直接讀取 CSS 變數，確保與介面主題一致
+function cssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+function withAlpha(hex, alpha) {
+  const h = hex.replace('#', '');
+  const full = h.length === 3 ? h.split('').map(x => x + x).join('') : h;
+  const n = parseInt(full, 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+}
+
 function getChartThemeColors() {
   const isLight = document.documentElement.getAttribute('data-theme') === 'light';
   return {
-    text: isLight ? '#6b6478' : '#94a3b8',
-    grid: isLight ? 'rgba(30, 27, 46, 0.08)' : 'rgba(255, 255, 255, 0.05)',
-    gridStrong: isLight ? 'rgba(30, 27, 46, 0.12)' : 'rgba(255, 255, 255, 0.08)'
+    text: cssVar('--color-text-muted'),
+    grid: isLight ? 'rgba(26, 42, 48, 0.08)' : 'rgba(232, 227, 214, 0.06)',
+    gridStrong: isLight ? 'rgba(26, 42, 48, 0.12)' : 'rgba(232, 227, 214, 0.1)'
   };
 }
 
@@ -893,22 +905,22 @@ function setupFirebaseAuth() {
           {
             label: '情緒分數',
             data: trends.map(t => t.emotion_score),
-            borderColor: '#10b981',
-            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+            borderColor: cssVar('--color-emotion'),
+            backgroundColor: withAlpha(cssVar('--color-emotion'), 0.1),
             tension: 0.3,
             fill: true
           },
           {
             label: '壓力指數',
             data: trends.map(t => t.stress_index),
-            borderColor: '#f43f5e',
+            borderColor: cssVar('--color-stress'),
             backgroundColor: 'transparent',
             tension: 0.3
           },
           {
             label: '焦慮指數',
             data: trends.map(t => t.anxiety_index),
-            borderColor: '#f59e0b',
+            borderColor: cssVar('--color-anxiety'),
             backgroundColor: 'transparent',
             tension: 0.3
           }
@@ -919,7 +931,7 @@ function setupFirebaseAuth() {
         maintainAspectRatio: false,
         plugins: {
           legend: {
-            labels: { color: themeColors.text, font: { family: 'Outfit' } }
+            labels: { color: themeColors.text, font: { family: 'Noto Sans TC' } }
           }
         },
         scales: {
@@ -951,10 +963,10 @@ function setupFirebaseAuth() {
         datasets: [{
           label: '心理狀態分佈',
           data: [avg.emotion, avg.stress, avg.anxiety, avg.stability],
-          backgroundColor: 'rgba(139, 92, 246, 0.2)',
-          borderColor: '#8b5cf6',
+          backgroundColor: withAlpha(cssVar('--color-primary'), 0.2),
+          borderColor: cssVar('--color-primary'),
           borderWidth: 2,
-          pointBackgroundColor: '#8b5cf6'
+          pointBackgroundColor: cssVar('--color-primary')
         }]
       },
       options: {
@@ -967,7 +979,7 @@ function setupFirebaseAuth() {
           r: {
             angleLines: { color: themeColors.gridStrong },
             grid: { color: themeColors.gridStrong },
-            pointLabels: { color: themeColors.text, font: { family: 'Outfit', size: 12 } },
+            pointLabels: { color: themeColors.text, font: { family: 'Noto Sans TC', size: 12 } },
             ticks: { display: false },
             min: 0,
             max: 100
@@ -1269,7 +1281,7 @@ function setupFirebaseAuth() {
         datasets: [{
           label: '平均情緒分數',
           data: weekdayAverages.map(w => w.average),
-          backgroundColor: 'rgba(139, 92, 246, 0.55)',
+          backgroundColor: withAlpha(cssVar('--color-primary'), 0.55),
           borderRadius: 6
         }]
       },
@@ -1308,13 +1320,13 @@ function setupFirebaseAuth() {
       <html lang="zh-TW"><head><meta charset="UTF-8">
       <title>心靈微光 - AI 心理報告</title>
       <style>
-        body { font-family: 'Noto Sans TC', sans-serif; padding: 32px; color: #1e1b2e; line-height: 1.7; }
-        h1 { color: #7c3aed; margin-bottom: 4px; }
-        h2 { margin-top: 28px; border-left: 4px solid #7c3aed; padding-left: 10px; }
-        .meta { color: #6b6478; margin-bottom: 20px; }
+        body { font-family: 'Noto Sans TC', sans-serif; padding: 32px; color: #1a2a30; line-height: 1.7; }
+        h1 { color: #7a5c1e; margin-bottom: 4px; }
+        h2 { margin-top: 28px; border-left: 4px solid #7a5c1e; padding-left: 10px; }
+        .meta { color: #5b6b6c; margin-bottom: 20px; }
         .metrics { display: flex; gap: 16px; margin: 16px 0; }
-        .metric { background: #f4f3fb; padding: 10px 16px; border-radius: 10px; text-align: center; }
-        .chip { display: inline-block; background: #ede9fe; color: #5b21b6; padding: 4px 10px; border-radius: 999px; margin: 4px 6px 0 0; font-size: 13px; }
+        .metric { background: #f1efe6; padding: 10px 16px; border-radius: 10px; text-align: center; }
+        .chip { display: inline-block; background: #efe6cc; color: #5c4512; padding: 4px 10px; border-radius: 999px; margin: 4px 6px 0 0; font-size: 13px; }
         .chip.neg { background: #fee2e2; color: #b91c1c; }
         @media print { body { padding: 12px; } }
       </style>
