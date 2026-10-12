@@ -1,4 +1,4 @@
-const CACHE_NAME = 'psycho-diary-shell-v3';
+const CACHE_NAME = 'psycho-diary-shell-v4';
 
 const SHELL_ASSETS = [
   '/',
@@ -40,23 +40,16 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // API 資料：network-first
+  // API 資料：一律走網路，絕不快取。
+  // 日記屬於敏感個資，若快取，離線或換帳號時可能被另一位使用者讀到。
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(
-      fetch(request)
-        .then((res) => {
-          const clone = res.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-          return res;
-        })
-        .catch(() =>
-          caches.match(request).then((cached) =>
-            cached || new Response(
-              JSON.stringify({ error: '目前離線，且沒有可用的快取資料。' }),
-              { status: 503, headers: { 'Content-Type': 'application/json' } }
-            )
-          )
+      fetch(request).catch(() =>
+        new Response(
+          JSON.stringify({ error: '目前離線，無法取得日記資料。' }),
+          { status: 503, headers: { 'Content-Type': 'application/json' } }
         )
+      )
     );
     return;
   }

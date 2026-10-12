@@ -253,6 +253,14 @@ function setupMobileMenu() {
   });
 }
 
+// 以使用者本地時區產生 YYYY-MM-DD（避免 toISOString 的 UTC 造成日期差一天）
+function localDateStr(d = new Date()) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 // 圖表顏色直接讀取 CSS 變數，確保與介面主題一致
 function cssVar(name) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -834,7 +842,7 @@ function setupFirebaseAuth() {
     const cells = [];
     const cursor = new Date(start);
     while (cursor <= end) {
-      const dateStr = cursor.toISOString().slice(0, 10);
+      const dateStr = localDateStr(cursor);
       const entry = byDate[dateStr];
       const isFuture = cursor > today;
       cells.push({ date: dateStr, score: entry ? entry.emotion_score : null, isFuture });
@@ -854,7 +862,7 @@ function setupFirebaseAuth() {
       const level = c.isFuture ? -1 : levelFor(c.score);
       const title = c.isFuture
         ? ''
-        : (c.score !== null ? `${c.date}｜情緒分數 ${c.score}` : `${c.date}｜無紀錄`);
+        : (c.score !== null ? `${c.date}｜情緒分數 ${Number(c.score) || 0}` : `${c.date}｜無紀錄`);
       html += `<div class="heatmap-cell ${c.isFuture ? 'future' : `level-${level}`}" title="${title}"></div>`;
     });
     html += '</div>';
@@ -1035,7 +1043,7 @@ function setupFirebaseAuth() {
 
       const dateStr = document.createElement('div');
       dateStr.className = 'log-date';
-      dateStr.innerHTML = `<i data-lucide="calendar" style="width:16px;height:16px"></i> ${d.date}`;
+      dateStr.innerHTML = `<i data-lucide="calendar" style="width:16px;height:16px"></i> ${String(d.date).replace(/[<>&"']/g, '')}`;
 
       const snippet = document.createElement('div');
       snippet.className = 'log-snippet';
@@ -1044,9 +1052,9 @@ function setupFirebaseAuth() {
       const metrics = document.createElement('div');
       metrics.className = 'log-metrics';
       metrics.innerHTML = `
-        <span class="text-emotion">情緒: ${d.emotion_score}</span>
-        <span class="text-stress">壓力: ${d.stress_index}</span>
-        <span class="text-anxiety">焦慮: ${d.anxiety_index}</span>
+        <span class="text-emotion">情緒: ${Number(d.emotion_score) || 0}</span>
+        <span class="text-stress">壓力: ${Number(d.stress_index) || 0}</span>
+        <span class="text-anxiety">焦慮: ${Number(d.anxiety_index) || 0}</span>
         ${d.advice_completed ? '<span class="text-stability" title="已採納建議"><i data-lucide=\'check-circle\' style=\'width:12px;height:12px\'></i> 已採納建議</span>' : ''}
         ${d.crisis_alert ? '<span class="crisis-tag">⚠ 危機提示</span>' : ''}
       `;
@@ -1166,7 +1174,7 @@ function setupFirebaseAuth() {
         return obj;
       });
       blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      filename = `diary_export_${new Date().toISOString().slice(0, 10)}.json`;
+      filename = `diary_export_${localDateStr()}.json`;
     } else {
       const esc = (v) => {
         if (v === undefined || v === null) return '';
@@ -1177,7 +1185,7 @@ function setupFirebaseAuth() {
       const rows = state.diaries.map(d => cols.map(c => esc(d[c])).join(','));
       const csv = '\uFEFF' + [header, ...rows].join('\n'); // BOM for Excel 中文編碼
       blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      filename = `diary_export_${new Date().toISOString().slice(0, 10)}.csv`;
+      filename = `diary_export_${localDateStr()}.csv`;
     }
 
     const url = URL.createObjectURL(blob);
@@ -1470,7 +1478,7 @@ function setupFirebaseAuth() {
     if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
     if (localStorage.getItem('reminder_enabled') !== '1') return;
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localDateStr();
     const lastPrompt = localStorage.getItem('reminder_last_prompt');
     if (lastPrompt === today) return; // 今天已經提醒過一次
 

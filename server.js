@@ -131,6 +131,73 @@ const CRISIS_RESOURCES = {
   ]
 };
 
+// ========================================
+// 輸入驗證、頻率限制與日期工具
+// ========================================
+const MAX_DIARY_LENGTH = 5000;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function isValidDate(value) {
+  if (typeof value !== 'string' || !DATE_RE.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  // 轉回字串比對，擋掉 2026-02-31 這類不存在的日期
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+function clampScore(value, fallback) {
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.min(100, Math.max(0, Math.round(n))) : fallback;
+}
+
+function cleanText(value, maxLen) {
+  return typeof value === 'string' ? value.slice(0, maxLen) : '';
+}
+
+function cleanList(list, maxItems = 20, maxLen = 30) {
+  if (!Array.isArray(list)) return [];
+  return list
+    .filter(item => typeof item === 'string' && item.trim() !== '')
+    .slice(0, maxItems)
+    .map(item => item.slice(0, maxLen));
+}
+
+// 以台灣時區產生 YYYY-MM-DD，避免 UTC 造成凌晨日期差一天
+function taipeiDateStr(d = new Date()) {
+  return d.toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' });
+}
+
+// 簡易的每位使用者頻率限制（記憶體內），避免有人大量消耗 Gemini 額度
+const rateBuckets = new Map();
+
+function rateLimit(limit, windowMs) {
+  return (req, res, next) => {
+    const key = `${req.user.uid}:${req.path}`;
+    const now = Date.now();
+    const recent = (rateBuckets.get(key) || []).filter(t => now - t < windowMs);
+    if (recent.length >= limit) {
+      return res.status(429).json({ error: '操作太頻繁，請稍後再試。' });
+    }
+    recent.push(now);
+    rateBuckets.set(key, recent);
+    next();
+  };
+}
+
+setInterval(() => {
+  const cutoff = Date.now() - 10 * 60 * 1000;
+  for (const [key, times] of rateBuckets) {
+    if (!times.some(t => t > cutoff)) rateBuckets.delete(key);
+  }
+}, 10 * 60 * 1000).unref();
+
+// 路徑中的 :date 一律先驗證格式
+app.param('date', (req, res, next, value) => {
+  if (!isValidDate(value)) {
+    return res.status(400).json({ error: '日期格式錯誤，需為 YYYY-MM-DD。' });
+  }
+  next();
+});
+
 app.get('/api/status', (req, res) => {
   const hasEnvKey = !!process.env.GEMINI_API_KEY;
   res.json({
@@ -142,16 +209,22 @@ app.get('/api/status', (req, res) => {
   });
 });
 
-app.post('/api/diaries/analyze', authenticateUser, async (req, res) => {
+app.post('/api/diaries/analyze', authenticateUser, rateLimit(10, 60 * 1000), async (req, res) => {
 
   const { content } = req.body;
 
-  if (!content || content.trim() === '') {
+  if (typeof content !== 'string' || content.trim() === '') {
 
     return res.status(400).json({
       error: 'Diary content cannot be empty.'
     });
 
+  }
+
+  if (content.length > MAX_DIARY_LENGTH) {
+    return res.status(400).json({
+      error: `日記內容過長，請控制在 ${MAX_DIARY_LENGTH} 字以內。`
+    });
   }
 
   try {
@@ -305,8 +378,13 @@ JSON Schema：
     // AI 失敗時仍以關鍵字做安全防護，讓前端能顯示求助資源
     const fallbackCrisis = detectCrisis(content);
 
+    const friendlyError =
+      error.message === 'AI 回傳格式錯誤，請重新分析。'
+        ? error.message
+        : '分析服務暫時無法使用，請稍後再試。';
+
     res.status(500).json({
-      error: error.message,
+      error: friendlyError,
       ...(fallbackCrisis
         ? { crisis_alert: true, crisis_resources: CRISIS_RESOURCES }
         : {})
@@ -325,12 +403,18 @@ app.post('/api/diaries', authenticateUser, async (req, res) => {
 
   const { date, content, analysis } = req.body;
 
-  if (!date || !content) {
+  if (!isValidDate(date) || typeof content !== 'string' || content.trim() === '') {
 
     return res.status(400).json({
-      error: 'Date and content are required.'
+      error: 'Date (YYYY-MM-DD) and content are required.'
     });
 
+  }
+
+  if (content.length > MAX_DIARY_LENGTH) {
+    return res.status(400).json({
+      error: `日記內容過長，請控制在 ${MAX_DIARY_LENGTH} 字以內。`
+    });
   }
 
   try {
@@ -346,38 +430,21 @@ app.post('/api/diaries', authenticateUser, async (req, res) => {
       date,
       content,
 
-      emotion_score:
-        analysis?.emotion_score ?? 50,
+      emotion_score: clampScore(analysis?.emotion_score, 50),
+      stress_index: clampScore(analysis?.stress_index, 0),
+      anxiety_index: clampScore(analysis?.anxiety_index, 0),
+      stability_index: clampScore(analysis?.stability_index, 50),
 
-      stress_index:
-        analysis?.stress_index ?? 0,
+      positive_emotions: cleanList(analysis?.positive_emotions),
+      negative_emotions: cleanList(analysis?.negative_emotions),
 
-      anxiety_index:
-        analysis?.anxiety_index ?? 0,
+      summary: cleanText(analysis?.summary, 1000),
+      advice: cleanText(analysis?.advice, 1000),
 
-      stability_index:
-        analysis?.stability_index ?? 50,
+      crisis_alert: analysis?.crisis_alert === true,
+      risk_level: normalizeRiskLevel(analysis?.risk_level),
 
-      positive_emotions:
-        analysis?.positive_emotions ?? [],
-
-      negative_emotions:
-        analysis?.negative_emotions ?? [],
-
-      summary:
-        analysis?.summary ?? '',
-
-      advice:
-        analysis?.advice ?? '',
-
-      crisis_alert:
-        analysis?.crisis_alert ?? false,
-
-      risk_level:
-        analysis?.risk_level ?? 'none',
-
-      raw_ai_response:
-        JSON.stringify(analysis ?? {})
+      raw_ai_response: JSON.stringify(analysis ?? {}).slice(0, 10000)
 
     };
 
@@ -394,7 +461,7 @@ app.post('/api/diaries', authenticateUser, async (req, res) => {
     );
 
     res.status(500).json({
-      error: error.message
+      error: '伺服器發生錯誤，請稍後再試。'
     });
 
   }
@@ -418,7 +485,7 @@ app.get('/api/diaries', authenticateUser, async (req, res) => {
   } catch (error) {
 
     res.status(500).json({
-      error: error.message
+      error: '伺服器發生錯誤，請稍後再試。'
     });
 
   }
@@ -451,7 +518,7 @@ app.get('/api/diaries/:date', authenticateUser, async (req, res) => {
   } catch (error) {
 
     res.status(500).json({
-      error: error.message
+      error: '伺服器發生錯誤，請稍後再試。'
     });
 
   }
@@ -477,7 +544,7 @@ app.delete('/api/diaries/:date', authenticateUser, async (req, res) => {
   } catch (error) {
 
     res.status(500).json({
-      error: error.message
+      error: '伺服器發生錯誤，請稍後再試。'
     });
 
   }
@@ -492,6 +559,10 @@ app.patch('/api/diaries/:date/advice-status', authenticateUser, async (req, res)
   try {
 
     const { completed } = req.body;
+
+    if (typeof completed !== 'boolean') {
+      return res.status(400).json({ error: 'completed must be a boolean.' });
+    }
 
     const updated = await db.updateAdviceStatus(
       req.user.uid,
@@ -510,7 +581,7 @@ app.patch('/api/diaries/:date/advice-status', authenticateUser, async (req, res)
   } catch (error) {
 
     res.status(500).json({
-      error: error.message
+      error: '伺服器發生錯誤，請稍後再試。'
     });
 
   }
@@ -521,7 +592,7 @@ app.patch('/api/diaries/:date/advice-status', authenticateUser, async (req, res)
 // ========================================
 // AI 週報 / 月報：彙整一段期間的日記，交由 Gemini 產生整體性的心理報告
 // ========================================
-app.post('/api/diaries/report', authenticateUser, async (req, res) => {
+app.post('/api/diaries/report', authenticateUser, rateLimit(5, 60 * 1000), async (req, res) => {
 
   try {
 
@@ -533,7 +604,7 @@ app.post('/api/diaries/report', authenticateUser, async (req, res) => {
       startDate.getDate() - (period === 'month' ? 29 : 6)
     );
 
-    const toDateStr = (d) => d.toISOString().slice(0, 10);
+    const toDateStr = (d) => taipeiDateStr(d);
 
     const diaries = await db.getDiariesInRange(
       req.user.uid,
@@ -637,7 +708,7 @@ ${diarySummaries}
     console.error('產生報告失敗:', error.message);
 
     res.status(500).json({
-      error: error.message
+      error: '伺服器發生錯誤，請稍後再試。'
     });
 
   }
@@ -723,7 +794,7 @@ app.get('/api/stats', authenticateUser, async (req, res) => {
     // 連續紀錄天數（streak）：從今天（或最近一篇日記日）往回算，
     // 只要中間沒有斷過一天就持續累加
     const dateSet = new Set(diaries.map(d => d.date));
-    const toDateStr = (d) => d.toISOString().slice(0, 10);
+    const toDateStr = (d) => taipeiDateStr(d);
     let streak = 0;
     let cursor = new Date();
     // 若今天還沒寫，從昨天開始算（不因為「今天還沒寫」就把 streak 歸零）
@@ -791,7 +862,7 @@ app.get('/api/stats', authenticateUser, async (req, res) => {
   } catch (error) {
 
     res.status(500).json({
-      error: error.message
+      error: '伺服器發生錯誤，請稍後再試。'
     });
 
   }
