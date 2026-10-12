@@ -82,6 +82,8 @@ async function authenticateUser(req, res, next) {
   }
 }
 
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
+
 function getGeminiClient() {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -234,9 +236,8 @@ app.post('/api/diaries/analyze', authenticateUser, rateLimit(10, 60 * 1000), asy
 
     const ai = getGeminiClient();
 
-    // 官方正式模型：gemini-2.0-flash 或 gemini-1.5-flash
     const model = ai.getGenerativeModel({
-      model: 'gemini-2.0-flash',
+      model: GEMINI_MODEL,
       generationConfig: {
         responseMimeType: 'application/json'
       }
@@ -512,7 +513,7 @@ app.post('/api/diaries/report', authenticateUser, rateLimit(5, 60 * 1000), async
 
     const ai = getGeminiClient();
     const model = ai.getGenerativeModel({
-      model: 'gemini-2.0-flash',
+      model: GEMINI_MODEL,
       generationConfig: { responseMimeType: 'application/json' }
     });
 

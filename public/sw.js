@@ -1,4 +1,4 @@
-const CACHE_NAME = 'psycho-diary-shell-v5';
+const CACHE_NAME = 'psycho-diary-shell-v6';
 
 const SHELL_ASSETS = [
   '/',
@@ -62,19 +62,23 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // App shell：cache-first（增加 status 200 檢查，防止快取毒化）
   event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) return cached;
-      return fetch(request).then((res) => {
-        // 僅快取成功 (status === 200) 的同源回應，不快取 404/500 等錯誤狀態
-        if (!res || res.status !== 200 || res.type !== 'basic') {
-          return res;
+    fetch(request)
+      .then((res) => {
+        if (res && res.status === 200 && res.type === 'basic') {
+          const clone = res.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
         }
-        const clone = res.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
         return res;
-      });
-    })
+      })
+      .catch(async () => {
+        const cached = await caches.match(request);
+        if (cached) return cached;
+        if (request.mode === 'navigate') {
+          const home = await caches.match('/');
+          if (home) return home;
+        }
+        return Response.error();
+      })
   );
 });
