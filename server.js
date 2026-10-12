@@ -82,7 +82,7 @@ async function authenticateUser(req, res, next) {
   }
 }
 
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
 
 function getGeminiClient() {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -317,11 +317,9 @@ JSON Schema：
   } catch (error) {
     console.error('Gemini analysis failed:', error.message);
 
+    // ✅ 直接顯示真實錯誤訊息：
     const fallbackCrisis = detectCrisis(content);
-    const friendlyError =
-      error.message === 'AI 回傳格式錯誤，請重新分析。'
-        ? error.message
-        : '分析服務暫時無法使用，請稍後再試。';
+    const friendlyError = `[AI 錯誤] ${error.message}`;
 
     res.status(500).json({
       error: friendlyError,
@@ -566,8 +564,8 @@ ${diarySummaries}
     res.json({
       period,
       totalCount: count,
-      startDate: toDateStr(startDate),
-      endDate: toDateStr(endDate),
+      startDate: startDateStr,
+      endDate: endDateStr,
       periodStats,
       weekdayAverages,
       ...report
