@@ -82,7 +82,10 @@ async function authenticateUser(req, res, next) {
   }
 }
 
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
+// Gemini 模型名稱可用環境變數 GEMINI_MODEL 覆寫，之後換模型不必改程式、只要改環境變數並重啟。
+// 注意：gemini-2.0-flash 已於 2026/06/01 停用，gemini-2.5-flash 也已排定停用，請定期檢查
+// https://ai.google.dev/gemini-api/docs/deprecations
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
 
 function getGeminiClient() {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -205,6 +208,40 @@ app.param('date', (req, res, next, value) => {
   next();
 });
 
+const GEMINI_FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || 'gemini-3.5-flash';
+
+function isRetryableGeminiError(err) {
+  const msg = String((err && err.message) || '');
+  return /\b(429|500|502|503|504)\b/.test(msg) ||
+    /overloaded|high demand|unavailable|timeout|timed out|ECONNRESET|fetch failed/i.test(msg);
+}
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function generateWithFallback(ai, request) {
+  const models = [GEMINI_MODEL, GEMINI_FALLBACK_MODEL]
+    .filter((name, i, arr) => name && arr.indexOf(name) === i);
+  let lastError;
+
+  for (const modelName of models) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const model = ai.getGenerativeModel({
+          model: modelName,
+          generationConfig: { responseMimeType: 'application/json' }
+        });
+        return await model.generateContent(request);
+      } catch (err) {
+        lastError = err;
+        if (!isRetryableGeminiError(err)) throw err;
+        if (attempt === 0) await sleep(1200);
+      }
+    }
+    console.warn(`Gemini 模型 ${modelName} 暫時無法使用，嘗試備援模型`);
+  }
+  throw lastError;
+}
+
 app.get('/api/status', (req, res) => {
   const hasEnvKey = !!process.env.GEMINI_API_KEY;
   res.json({
@@ -235,13 +272,6 @@ app.post('/api/diaries/analyze', authenticateUser, rateLimit(10, 60 * 1000), asy
     console.log('AI 分析日記請求');
 
     const ai = getGeminiClient();
-
-    const model = ai.getGenerativeModel({
-      model: GEMINI_MODEL,
-      generationConfig: {
-        responseMimeType: 'application/json'
-      }
-    });
 
     const systemPrompt = `
 你是一個情緒分析與生活支持的AI助理，不是醫師或心理師。
@@ -278,7 +308,7 @@ JSON Schema：
 }
 `;
 
-    const result = await model.generateContent({
+    const result = await generateWithFallback(ai, {
       contents: [
         {
           role: 'user',
@@ -317,9 +347,13 @@ JSON Schema：
   } catch (error) {
     console.error('Gemini analysis failed:', error.message);
 
-    // ✅ 直接顯示真實錯誤訊息：
     const fallbackCrisis = detectCrisis(content);
-    const friendlyError = `[AI 錯誤] ${error.message}`;
+    const friendlyError =
+      error.message === 'AI 回傳格式錯誤，請重新分析。'
+        ? error.message
+        : isRetryableGeminiError(error)
+          ? 'AI 服務目前較為忙碌，請稍等幾秒後再試一次。'
+          : '分析服務暫時無法使用，請稍後再試。';
 
     res.status(500).json({
       error: friendlyError,
@@ -510,11 +544,6 @@ app.post('/api/diaries/report', authenticateUser, rateLimit(5, 60 * 1000), async
     ).join('\n');
 
     const ai = getGeminiClient();
-    const model = ai.getGenerativeModel({
-      model: GEMINI_MODEL,
-      generationConfig: { responseMimeType: 'application/json' }
-    });
-
     const reportPrompt = `
 你是一個情緒分析與生活支持的AI助理，不是醫師或心理師，請勿做任何醫療或精神疾病的診斷、也不要提供用藥建議。以下是使用者在${period === 'month' ? '過去一個月' : '過去一週'}內，
 每日日記的每日摘要與心理指標（情緒、壓力、焦慮、穩定度，皆為 1-100 分）：
@@ -534,7 +563,7 @@ ${diarySummaries}
 請務必只回傳標準 JSON，不要加入 Markdown 或其他文字。
 `;
 
-    const result = await model.generateContent({
+    const result = await generateWithFallback(ai, {
       contents: [{ role: 'user', parts: [{ text: reportPrompt }] }]
     });
 
@@ -564,8 +593,8 @@ ${diarySummaries}
     res.json({
       period,
       totalCount: count,
-      startDate: startDateStr,
-      endDate: endDateStr,
+      startDate: toDateStr(startDate),
+      endDate: toDateStr(endDate),
       periodStats,
       weekdayAverages,
       ...report
