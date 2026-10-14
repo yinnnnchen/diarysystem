@@ -83,9 +83,11 @@ async function authenticateUser(req, res, next) {
 }
 
 // Gemini 模型名稱可用環境變數 GEMINI_MODEL 覆寫，之後換模型不必改程式、只要改環境變數並重啟。
-// 注意：gemini-2.0-flash 已於 2026/06/01 停用，gemini-2.5-flash 也已排定停用，請定期檢查
+// 目前固定使用 gemini-2.5-flash。依官方停用公告（2026/10/12 更新），2.5 系列尚未宣布停用，
+// 但 Google 已限制「過去曾使用過 2.5 的專案」才能繼續存取；若日後出現 404 / 無權限錯誤，
+// 請改用環境變數 GEMINI_MODEL 指定新模型（例如 gemini-3.8-flash）。公告：
 // https://ai.google.dev/gemini-api/docs/deprecations
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 
 function getGeminiClient() {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -208,7 +210,18 @@ app.param('date', (req, res, next, value) => {
   next();
 });
 
-const GEMINI_FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || 'gemini-3.5-flash';
+const DEFAULT_FALLBACK_MODELS = [];
+
+const GEMINI_FALLBACK_MODELS = (
+  process.env.GEMINI_FALLBACK_MODELS ||
+  process.env.GEMINI_FALLBACK_MODEL || 
+  ''
+).split(',').map(m => m.trim()).filter(Boolean);
+
+const GEMINI_MODEL_CHAIN = [
+  GEMINI_MODEL,
+  ...(GEMINI_FALLBACK_MODELS.length ? GEMINI_FALLBACK_MODELS : DEFAULT_FALLBACK_MODELS)
+].filter((name, i, arr) => name && arr.indexOf(name) === i);
 
 function isRetryableGeminiError(err) {
   const msg = String((err && err.message) || '');
@@ -216,28 +229,39 @@ function isRetryableGeminiError(err) {
     /overloaded|high demand|unavailable|timeout|timed out|ECONNRESET|fetch failed/i.test(msg);
 }
 
+function isModelUnavailableError(err) {
+  const msg = String((err && err.message) || '');
+  return /\b404\b/.test(msg) ||
+    /not found|is not supported|no longer available|deprecated|shut ?down|retired/i.test(msg);
+}
+
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function generateWithFallback(ai, request) {
-  const models = [GEMINI_MODEL, GEMINI_FALLBACK_MODEL]
-    .filter((name, i, arr) => name && arr.indexOf(name) === i);
   let lastError;
 
-  for (const modelName of models) {
-    for (let attempt = 0; attempt < 2; attempt++) {
+  for (let m = 0; m < GEMINI_MODEL_CHAIN.length; m++) {
+    const modelName = GEMINI_MODEL_CHAIN[m];
+    const maxAttempts = GEMINI_MODEL_CHAIN.length === 1 ? 3 : (m === 0 ? 2 : 1);
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
         const model = ai.getGenerativeModel({
           model: modelName,
           generationConfig: { responseMimeType: 'application/json' }
         });
-        return await model.generateContent(request);
+        const result = await model.generateContent(request);
+        if (m > 0) console.warn(`Gemini 已改用備援模型：${modelName}`);
+        return result;
       } catch (err) {
         lastError = err;
-        if (!isRetryableGeminiError(err)) throw err;
-        if (attempt === 0) await sleep(1200);
+        const canMoveOn = isRetryableGeminiError(err) || isModelUnavailableError(err);
+        if (!canMoveOn) throw err; 
+        if (isModelUnavailableError(err)) break;
+        if (attempt < maxAttempts - 1) await sleep(1200 * (attempt + 1));
       }
     }
-    console.warn(`Gemini 模型 ${modelName} 暫時無法使用，嘗試備援模型`);
+    console.warn(`Gemini 模型 ${modelName} 暫時無法使用，嘗試下一個備援模型`);
   }
   throw lastError;
 }
@@ -351,7 +375,7 @@ JSON Schema：
     const friendlyError =
       error.message === 'AI 回傳格式錯誤，請重新分析。'
         ? error.message
-        : isRetryableGeminiError(error)
+        : (isRetryableGeminiError(error) || isModelUnavailableError(error))
           ? 'AI 服務目前較為忙碌，請稍等幾秒後再試一次。'
           : '分析服務暫時無法使用，請稍後再試。';
 
@@ -593,8 +617,8 @@ ${diarySummaries}
     res.json({
       period,
       totalCount: count,
-      startDate: toDateStr(startDate),
-      endDate: toDateStr(endDate),
+      startDate: startDateStr,
+      endDate: endDateStr,
       periodStats,
       weekdayAverages,
       ...report
