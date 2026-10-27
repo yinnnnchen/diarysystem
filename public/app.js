@@ -880,7 +880,7 @@ document.addEventListener('DOMContentLoaded', () => {
           maintainAspectRatio: false,
           plugins: {
             legend: {
-              labels: { color: themeColors.text, font: { family: 'Noto Sans TC' } }
+              labels: { color: themeColors.text, font: { family: 'Chiron GoRound TC' } }
             }
           },
           scales: {
@@ -929,7 +929,7 @@ document.addEventListener('DOMContentLoaded', () => {
             r: {
               angleLines: { color: themeColors.gridStrong },
               grid: { color: themeColors.gridStrong },
-              pointLabels: { color: themeColors.text, font: { family: 'Noto Sans TC', size: 12 } },
+              pointLabels: { color: themeColors.text, font: { family: 'Chiron GoRound TC', size: 12 } },
               ticks: { display: false },
               min: 0,
               max: 100
@@ -1275,7 +1275,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <html lang="zh-TW"><head><meta charset="UTF-8">
       <title>心靈微光 - AI 心理報告</title>
       <style>
-        body { font-family: 'Noto Sans TC', sans-serif; padding: 32px; color: #1a2a30; line-height: 1.7; }
+        body { font-family: 'Chiron GoRound TC', sans-serif; padding: 32px; color: #1a2a30; line-height: 1.7; }
         h1 { color: #7a5c1e; margin-bottom: 4px; }
         h2 { margin-top: 28px; border-left: 4px solid #7a5c1e; padding-left: 10px; }
         .meta { color: #5b6b6c; margin-bottom: 20px; }
