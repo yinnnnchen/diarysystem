@@ -97,14 +97,37 @@ async function getAllDiaries(user_id) {
   return diaries;
 }
 
+// 專為儀表板統計優化：僅抓取統計計算所需欄位，略過大體積的 content 與 raw_ai_response
+async function getDiariesForStats(user_id) {
+  const snapshot = await db
+    .collection(COLLECTION)
+    .where('user_id', '==', user_id)
+    .select(
+      'date',
+      'emotion_score',
+      'stress_index',
+      'anxiety_index',
+      'stability_index',
+      'positive_emotions',
+      'negative_emotions'
+    )
+    .get();
+
+  const diaries = snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }));
+
+  diaries.sort((a, b) => a.date.localeCompare(b.date));
+  return diaries;
+}
+
 async function deleteDiary(user_id, date) {
   const docRef = db.collection(COLLECTION).doc(diaryDocId(user_id, date));
   const snap = await docRef.get();
-
   if (!snap.exists) {
     return { changes: 0 };
   }
-
   await docRef.delete();
   return { changes: 1 };
 }
@@ -139,11 +162,9 @@ async function getDiariesInRange(user_id, startDate, endDate) {
 async function updateAdviceStatus(user_id, date, completed) {
   const docRef = db.collection(COLLECTION).doc(diaryDocId(user_id, date));
   const snap = await docRef.get();
-
   if (!snap.exists) {
     return null;
   }
-
   const record = {
     advice_completed: !!completed,
     advice_completed_at: completed ? new Date().toISOString() : null,
@@ -154,7 +175,8 @@ async function updateAdviceStatus(user_id, date, completed) {
 
   return {
     id: docRef.id,
-    ...snap.data(),
+    user_id,
+    date,
     ...record
   };
 }
@@ -186,6 +208,7 @@ module.exports = {
   saveDiary,
   getDiaryByDate,
   getAllDiaries,
+  getDiariesForStats,
   getDiariesInRange,
   updateAdviceStatus,
   deleteDiary,

@@ -70,7 +70,7 @@ async function authenticateUser(req, res, next) {
       });
     }
 
-    const idToken = authHeader.split('Bearer ')[1];
+    const idToken = authHeader.replace(/^Bearer\s+/i, '').trim();
     const decodedToken = await getAuth().verifyIdToken(idToken);
     req.user = decodedToken;
     next();
@@ -99,18 +99,24 @@ function getGeminiClient() {
   return new GoogleGenerativeAI(apiKey);
 }
 
-/**
- * 安全解析 AI 回傳的 JSON，過濾開頭與結尾的 Markdown 圍欄字元
- */
 function safeParseAiJson(rawText) {
   if (!rawText || typeof rawText !== 'string') {
     throw new Error('AI 回傳內容為空');
   }
-  const cleaned = rawText
-    .replace(/^```(?:json)?\s*/i, '')
-    .replace(/\s*```$/i, '')
-    .trim();
-  return JSON.parse(cleaned);
+  const trimmed = rawText.trim();
+  try {
+    const cleaned = trimmed
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/\s*```$/i, '')
+      .trim();
+    return JSON.parse(cleaned);
+  } catch (err) {
+    const match = trimmed.match(/\{[\s\S]*\}/);
+    if (match) {
+      return JSON.parse(match[0]);
+    }
+    throw err;
+  }
 }
 
 const CRISIS_KEYWORDS = [
@@ -174,6 +180,15 @@ function cleanList(list, maxItems = 20, maxLen = 30) {
     .filter(item => typeof item === 'string' && item.trim() !== '')
     .slice(0, maxItems)
     .map(item => item.slice(0, maxLen));
+}
+
+function clientDateStr(req, d = new Date()) {
+  const tz = (req && req.headers && req.headers['x-client-timezone']) || 'Asia/Taipei';
+  try {
+    return d.toLocaleDateString('sv-SE', { timeZone: tz });
+  } catch {
+    return d.toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' });
+  }
 }
 
 function taipeiDateStr(d = new Date()) {
@@ -250,7 +265,9 @@ async function generateWithFallback(ai, request) {
           model: modelName,
           generationConfig: { responseMimeType: 'application/json' }
         });
-        const result = await model.generateContent(request);
+        const result = await model.generateContent(request, {
+          signal: AbortSignal.timeout(20000)
+        });
         if (m > 0) console.warn(`Gemini 已改用備援模型：${modelName}`);
         return result;
       } catch (err) {
@@ -345,7 +362,34 @@ JSON Schema：
       ]
     });
 
-    const text = result.response.text();
+    let text;
+    try {
+      const candidate = result.response.candidates?.[0];
+      if (candidate?.finishReason === 'SAFETY') {
+        throw new Error('SAFETY_BLOCKED');
+      }
+      text = result.response.text();
+    } catch (extractErr) {
+      if (extractErr.message === 'SAFETY_BLOCKED' || /SAFETY/i.test(extractErr.message)) {
+        console.warn('Gemini 觸發安全過濾機制，改以安全防護預設回覆');
+        return res.json({
+          emotion_score: 30,
+          stress_index: 75,
+          anxiety_index: 75,
+          stability_index: 40,
+          risk_level: 'high',
+          crisis_alert: true,
+          crisis_resources: CRISIS_RESOURCES,
+          summary: '這篇日記反映出較為強烈的情緒波動與負擔。我們非常關心你的狀態，如有需要請尋求專業心理協助。',
+          positive_emotions: [],
+          negative_emotions: ['沉重', '疲憊', '低落'],
+          key_factors: ['情緒波動'],
+          coping_strategies: ['深呼吸放鬆', '暫時離開壓力源', '撥打安心專線 1925', '尋求身邊信任的人陪伴']
+        });
+      }
+      throw extractErr;
+    }
+
     let analysis;
     try {
       analysis = safeParseAiJson(text);
@@ -388,9 +432,6 @@ JSON Schema：
   }
 });
 
-// ========================================
-// 新增 / 修改日記
-// ========================================
 app.post('/api/diaries', authenticateUser, async (req, res) => {
   const { date, content, analysis } = req.body;
 
@@ -410,6 +451,13 @@ app.post('/api/diaries', authenticateUser, async (req, res) => {
     const userId = req.user.uid;
     console.log(`儲存日記 - 日期: ${date}`);
 
+    const keywordHit = detectCrisis(content);
+    let riskLevel = normalizeRiskLevel(analysis?.risk_level);
+    if (keywordHit && (riskLevel === 'none' || riskLevel === 'low')) {
+      riskLevel = 'medium';
+    }
+    const isCrisis = keywordHit || riskLevel === 'medium' || riskLevel === 'high' || analysis?.crisis_alert === true;
+
     const diaryData = {
       user_id: userId,
       date,
@@ -422,8 +470,8 @@ app.post('/api/diaries', authenticateUser, async (req, res) => {
       negative_emotions: cleanList(analysis?.negative_emotions),
       summary: cleanText(analysis?.summary, 1000),
       advice: cleanText(analysis?.advice, 1000),
-      crisis_alert: analysis?.crisis_alert === true,
-      risk_level: normalizeRiskLevel(analysis?.risk_level),
+      crisis_alert: isCrisis,
+      risk_level: riskLevel,
       raw_ai_response: JSON.stringify(analysis ?? {}).slice(0, 10000)
     };
 
@@ -445,6 +493,7 @@ app.get('/api/diaries', authenticateUser, async (req, res) => {
     const list = await db.getAllDiaries(req.user.uid);
     res.json(list);
   } catch (error) {
+    console.error('取得日記列表失敗:', error);
     res.status(500).json({
       error: '伺服器發生錯誤，請稍後再試。'
     });
@@ -461,6 +510,7 @@ app.get('/api/diaries/:date', authenticateUser, async (req, res) => {
     }
     res.json(diary);
   } catch (error) {
+    console.error('取得單篇日記失敗:', error);
     res.status(500).json({
       error: '伺服器發生錯誤，請稍後再試。'
     });
@@ -470,11 +520,17 @@ app.get('/api/diaries/:date', authenticateUser, async (req, res) => {
 app.delete('/api/diaries/:date', authenticateUser, async (req, res) => {
   try {
     const result = await db.deleteDiary(req.user.uid, req.params.date);
+    if (!result || result.changes === 0) {
+      return res.status(404).json({
+        error: 'Diary entry not found for this date.'
+      });
+    }
     res.json({
       success: true,
       message: `Deleted ${result.changes} entry.`
     });
   } catch (error) {
+    console.error('刪除單篇日記失敗:', error);
     res.status(500).json({
       error: '伺服器發生錯誤，請稍後再試。'
     });
@@ -520,6 +576,7 @@ app.patch('/api/diaries/:date/advice-status', authenticateUser, async (req, res)
 
     res.json(updated);
   } catch (error) {
+    console.error('更新建議狀態失敗:', error);
     res.status(500).json({
       error: '伺服器發生錯誤，請稍後再試。'
     });
@@ -532,7 +589,7 @@ app.patch('/api/diaries/:date/advice-status', authenticateUser, async (req, res)
 app.post('/api/diaries/report', authenticateUser, rateLimit(5, 60 * 1000), async (req, res) => {
   try {
     const period = req.body.period === 'month' ? 'month' : 'week';
-    const todayStr = taipeiDateStr();
+    const todayStr = clientDateStr(req);
     const daysBack = period === 'month' ? 29 : 6;
     const startDateStr = addDaysToDateStr(todayStr, -daysBack);
     const endDateStr = todayStr;
@@ -563,9 +620,10 @@ app.post('/api/diaries/report', authenticateUser, rateLimit(5, 60 * 1000), async
       stability: avg('stability_index')
     };
 
-    const diarySummaries = diaries.map(d =>
-      `${d.date}｜情緒:${d.emotion_score} 壓力:${d.stress_index} 焦慮:${d.anxiety_index} 穩定:${d.stability_index}｜摘要:${d.summary || '(無摘要)'}`
-    ).join('\n');
+    const diarySummaries = diaries.slice(-30).map(d => {
+      const summaryText = (d.summary || '(無摘要)').slice(0, 120);
+      return `${d.date}｜情緒:${d.emotion_score} 壓力:${d.stress_index} 焦慮:${d.anxiety_index} 穩定:${d.stability_index}｜摘要:${summaryText}`;
+    }).join('\n');
 
     const ai = getGeminiClient();
     const reportPrompt = `
@@ -591,20 +649,46 @@ ${diarySummaries}
       contents: [{ role: 'user', parts: [{ text: reportPrompt }] }]
     });
 
-    const text = result.response.text();
     let report;
+    let text;
     try {
-      report = safeParseAiJson(text);
-    } catch (error) {
-      console.error('報告 JSON 解析失敗:', text);
-      throw new Error('AI 報告格式錯誤，請重新產生。');
+      const candidate = result.response.candidates?.[0];
+      if (candidate?.finishReason === 'SAFETY') {
+        throw new Error('SAFETY_BLOCKED');
+      }
+      text = result.response.text();
+    } catch (extractErr) {
+      if (extractErr.message === 'SAFETY_BLOCKED' || /SAFETY/i.test(extractErr.message)) {
+        console.warn('Gemini 週/月報觸發安全過濾機制，改以預設關懷回覆');
+        report = {
+          overview: '在這段期間的日記中，反映出較為顯著的情緒負荷與起伏。感謝你持續記錄真實的自己，面對困難本身就是一種勇氣。',
+          trend_insight: '情緒與壓力指數在這段期間偏高，建議多給自己一些喘息空間與休息時間。',
+          top_stressors: ['生活壓力', '情緒負荷'],
+          positive_highlights: ['持續記錄自我', '面對心靈起伏'],
+          recommendation: '給予自己更多寬容與休息，若感到情緒過於沉重，請主動聯繫親友或撥打安心專線 1925。'
+        };
+      } else {
+        throw extractErr;
+      }
+    }
+
+    if (!report) {
+      try {
+        report = safeParseAiJson(text);
+      } catch (error) {
+        console.error('報告 JSON 解析失敗:', text);
+        throw new Error('AI 報告格式錯誤，請重新產生。');
+      }
     }
 
     const weekdayLabels = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
     const weekdayBuckets = Array.from({ length: 7 }, () => []);
     diaries.forEach(d => {
-      const day = new Date(d.date + 'T00:00:00').getDay();
-      weekdayBuckets[day].push(Number(d.emotion_score) || 0);
+      const parsedDate = new Date(`${d.date}T00:00:00+08:00`);
+      const day = parsedDate.getDay();
+      if (Number.isInteger(day) && day >= 0 && day <= 6) {
+        weekdayBuckets[day].push(Number(d.emotion_score) || 0);
+      }
     });
     const weekdayAverages = weekdayBuckets.map((bucket, i) => ({
       label: weekdayLabels[i],
@@ -633,7 +717,7 @@ ${diarySummaries}
 
 app.get('/api/stats', authenticateUser, async (req, res) => {
   try {
-    const diaries = await db.getAllDiaries(req.user.uid);
+    const diaries = await db.getDiariesForStats(req.user.uid);
 
     if (diaries.length === 0) {
       return res.json({
@@ -658,8 +742,8 @@ app.get('/api/stats', authenticateUser, async (req, res) => {
     let totalAnxiety = 0;
     let totalStability = 0;
 
-    const posWordCount = {};
-    const negWordCount = {};
+    const posWordCount = Object.create(null);
+    const negWordCount = Object.create(null);
 
     diaries.forEach(d => {
       totalEmotion += Number(d.emotion_score) || 0;
@@ -668,19 +752,24 @@ app.get('/api/stats', authenticateUser, async (req, res) => {
       totalStability += Number(d.stability_index) || 0;
 
       (d.positive_emotions || []).forEach(w => {
-        if (w) posWordCount[w] = (posWordCount[w] || 0) + 1;
+        if (typeof w === 'string' && w.trim()) {
+          const key = w.trim().slice(0, 30);
+          posWordCount[key] = (posWordCount[key] || 0) + 1;
+        }
       });
 
       (d.negative_emotions || []).forEach(w => {
-        if (w) negWordCount[w] = (negWordCount[w] || 0) + 1;
+        if (typeof w === 'string' && w.trim()) {
+          const key = w.trim().slice(0, 30);
+          negWordCount[key] = (negWordCount[key] || 0) + 1;
+        }
       });
     });
 
     const count = diaries.length;
     const dateSet = new Set(diaries.map(d => d.date));
-    const toDateStr = (d) => taipeiDateStr(d);
     let streak = 0;
-    let checkDate = taipeiDateStr();
+    let checkDate = clientDateStr(req);
     if (!dateSet.has(checkDate)) {
       checkDate = addDaysToDateStr(checkDate, -1);
     }
@@ -706,11 +795,12 @@ app.get('/api/stats', authenticateUser, async (req, res) => {
         stability_index: d.stability_index
       })),
       emotionsDistribution: {
-        positive: posWordCount,
-        negative: negWordCount
+        positive: { ...posWordCount },
+        negative: { ...negWordCount }
       }
     });
   } catch (error) {
+    console.error('取得統計數據失敗:', error);
     res.status(500).json({
       error: '伺服器發生錯誤，請稍後再試。'
     });
@@ -731,6 +821,17 @@ app.use((req, res) => {
 // ========================================
 // Start Server
 // ========================================
+// Centralized error-handling middleware
+app.use((err, req, res, next) => {
+  console.error('Unhandled Server Error:', err);
+  if (res.headersSent) {
+    return next(err);
+  }
+  res.status(err.status || 500).json({
+    error: process.env.NODE_ENV === 'production' ? '伺服器內部錯誤' : (err.message || '伺服器內部錯誤')
+  });
+});
+
 db.init().then(() => {
   app.listen(PORT, () => {
     console.log(`Server is running at http://localhost:${PORT}`);

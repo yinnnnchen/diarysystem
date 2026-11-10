@@ -50,9 +50,11 @@ document.addEventListener('DOMContentLoaded', () => {
       throw new Error('請先登入 Google 帳號');
     }
     const token = await state.currentUser.getIdToken();
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Taipei';
     return {
       'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'X-Client-Timezone': tz
     };
   }
 
@@ -346,12 +348,16 @@ document.addEventListener('DOMContentLoaded', () => {
             },
             { merge: true }
           );
+        } catch (error) {
+          console.warn("Firestore 使用者資料建立失敗 (已忽略，不影響主功能):", error);
+        }
 
+        try {
           await loadAllData();
           // 登入完成後檢查今日提醒（解決時序死鎖問題）
           maybeShowDailyReminder();
         } catch (error) {
-          console.error("Firestore 使用者資料建立失敗:", error);
+          console.error("載入使用者日記資料失敗:", error);
         }
       } else {
         // 使用者登出：徹底清空狀態與圖表，防止個人隱私數據殘留
