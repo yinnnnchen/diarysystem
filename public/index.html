@@ -18,24 +18,18 @@
     })();
   </script>
   <meta name="theme-color" content="#0e171c">
-  <!-- PWA -->
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Chiron+GoRound+TC:wght@300;400;500;600;700;800&family=Roboto+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
-  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
-  <!-- CSS Stylesheet -->
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="app-container">
-    <!-- Sidebar Navigation -->
     <aside class="sidebar">
       <div class="brand">
         <div class="brand-logo">
@@ -84,12 +78,9 @@
       </div>
     </aside>
 
-    <!-- Backdrop shown behind the sidebar when it's opened as a mobile drawer -->
     <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
 
-    <!-- Main Content Area -->
     <main class="main-content">
-      <!-- Top header -->
       <header class="content-header">
         <button id="btn-mobile-menu" class="mobile-menu-toggle" type="button" aria-label="開啟選單">
           <i data-lucide="menu"></i>
@@ -121,7 +112,6 @@
         如感到困擾，請聯絡專業協助（安心專線 1925，24 小時）。你的日記僅有你本人能存取。</span>
       </div>
 
-      <!-- TAB 1: Dashboard -->
       <section id="tab-dashboard" class="tab-pane active">
         <!-- Calendar Heatmap Card (Top) -->
         <div class="glass-card heatmap-card top-heatmap">
@@ -149,7 +139,6 @@
           </div>
         </div>
 
-        <!-- Overview Stats Group (平均情緒分數, 平均壓力指數, 平均焦慮指數, 情緒穩定度) -->
         <div class="glass-card stats-group-card">
           <div class="card-header">
             <div class="stats-group-header-title">
@@ -200,7 +189,6 @@
           </div>
         </div>
 
-        <!-- Charts and Details Grid -->
         <div class="dashboard-grid">
           <!-- Chart Card: Trends -->
           <div class="glass-card chart-card-large">
@@ -215,7 +203,6 @@
             </div>
           </div>
 
-          <!-- Chart Card: Stress vs Anxiety -->
           <div class="glass-card chart-card-small">
             <div class="card-header">
               <h3><i data-lucide="bar-chart-2"></i> 心理狀態分佈</h3>
@@ -225,7 +212,6 @@
             </div>
           </div>
 
-          <!-- Emotional Word Clouds -->
           <div class="glass-card keyword-card">
             <div class="card-header">
               <h3><i data-lucide="tags"></i> 常用正向情感詞</h3>
@@ -246,7 +232,6 @@
         </div>
       </section>
 
-      <!-- TAB 2: Write Diary -->
       <section id="tab-write" class="tab-pane">
         <div class="diary-editor-layout">
           <!-- Editor card -->
@@ -271,7 +256,6 @@
             </div>
           </div>
 
-          <!-- Analysis Results Panel -->
           <div class="glass-card analysis-panel" id="analysis-panel">
             <div class="analysis-panel-placeholder" id="analysis-placeholder">
               <i data-lucide="sparkles" class="floating-icon"></i>
@@ -285,7 +269,6 @@
                 <span class="badge success" id="result-status">分析完成</span>
               </div>
 
-              <!-- Crisis Alert Banner -->
               <div class="crisis-banner hidden" id="crisis-banner">
                 <div class="crisis-banner-header">
                   <i data-lucide="heart-handshake"></i>
@@ -294,7 +277,6 @@
                 <div id="crisis-banner-body"></div>
               </div>
 
-              <!-- Indicators breakdown -->
               <div class="result-metrics">
                 <div class="metric-item">
                   <div class="metric-label">情緒分數 <span id="metric-val-emotion">0</span></div>
@@ -325,7 +307,6 @@
                 </div>
               </div>
 
-              <!-- Keywords -->
               <div class="emotion-tags-container">
                 <div class="tags-group">
                   <span class="tags-label">正向詞：</span>
@@ -337,13 +318,11 @@
                 </div>
               </div>
 
-              <!-- Summary -->
               <div class="report-box summary-box">
                 <h4><i data-lucide="bookmark"></i> 心靈語意摘要</h4>
                 <p id="result-summary">日記摘要內容...</p>
               </div>
 
-              <!-- Advice -->
               <div class="report-box advice-box">
                 <h4><i data-lucide="lightbulb"></i> 溫馨建議與關懷</h4>
                 <p id="result-advice">AI 心理健康建議...</p>
@@ -357,7 +336,6 @@
         </div>
       </section>
 
-      <!-- TAB 3: Diary Logs (History) -->
       <section id="tab-logs" class="tab-pane">
         <div class="logs-container">
           <div class="logs-header-bar">
@@ -392,7 +370,6 @@
             </div>
           </div>
 
-          <!-- Logs Timeline / List -->
           <div class="logs-timeline" id="logs-timeline-list">
             <!-- Dynamic Insertion -->
             <div class="text-center p-5 text-muted">正在載入日記歷史紀錄...</div>
@@ -400,7 +377,6 @@
         </div>
       </section>
 
-      <!-- TAB: AI Report (Week/Month) -->
       <section id="tab-report" class="tab-pane">
         <div class="report-controls glass-card">
           <div class="input-group-inline">
@@ -470,7 +446,6 @@
         </div>
       </section>
 
-      <!-- TAB 4: Settings -->
       <section id="tab-settings" class="tab-pane">
         <div class="settings-layout">
           <div class="glass-card settings-card">
@@ -502,7 +477,6 @@
     </main>
   </div>
 
-  <!-- Diary Detail Modal -->
   <div class="modal-backdrop hidden" id="diary-detail-modal">
     <div class="modal-card">
       <div class="modal-header">
@@ -548,7 +522,6 @@
     </div>
   </div>
 
-  <!-- 行動端底部導航列 (Mobile Bottom Dock) -->
   <nav class="bottom-nav-dock" id="mobile-bottom-dock" aria-label="行動端導航">
     <a href="#dashboard" class="bottom-nav-item active" data-tab="dashboard">
       <i data-lucide="layout-dashboard"></i>
